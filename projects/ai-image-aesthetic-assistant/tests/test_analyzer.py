@@ -1,0 +1,36 @@
+import os
+import unittest
+
+from core.analyzer import normalize_model_payload
+from core.model_client import ModelClient
+
+
+class AnalyzerTests(unittest.TestCase):
+    def test_normalize_model_payload_maps_scores_and_text(self):
+        raw = {
+            "scores": {"构图": "8", "色彩": 7, "主体": 6, "清晰度": 8, "视觉层次": 7},
+            "issues": ["背景干扰主体"],
+            "suggestions": ["简化背景元素"],
+            "summary": "主体明确，但背景信息偏多。",
+        }
+        result = normalize_model_payload(raw)
+        self.assertEqual(result["scores"]["构图"], 8)
+        self.assertEqual(result["issues"][0], "背景干扰主体")
+
+    def test_model_client_uses_mock_mode_when_env_set(self):
+        original_mode = os.environ.get("AI_IMAGE_EVAL_MODE")
+        try:
+            os.environ["AI_IMAGE_EVAL_MODE"] = "mock"
+            client = ModelClient()
+            payload = client.analyze("fake-base64", "sample.jpg", "prompt")
+            self.assertGreaterEqual(payload["scores"]["构图"], 1)
+        finally:
+            if original_mode is None:
+                os.environ.pop("AI_IMAGE_EVAL_MODE", None)
+            else:
+                os.environ["AI_IMAGE_EVAL_MODE"] = original_mode
+
+
+if __name__ == "__main__":
+    unittest.main()
+
