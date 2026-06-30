@@ -1,4 +1,5 @@
 .worktrees/
+.superpowers/sdd/
 __pycache__/
 *.py[cod]
 .env
