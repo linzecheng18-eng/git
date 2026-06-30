@@ -1,11 +1,25 @@
 import os
 import unittest
+from unittest.mock import patch
 
-from core.analyzer import normalize_model_payload
+from core.analyzer import analyze_image_bytes, normalize_model_payload
 from core.model_client import ModelClient
 
 
 class AnalyzerTests(unittest.TestCase):
+    def test_analyzer_uses_selected_image_type(self):
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze"
+        ) as analyze:
+            analyze.return_value = {
+                "scores": {"构图": 7, "色彩": 7, "主体": 7, "清晰度": 7, "视觉层次": 7},
+                "issues": ["主体不够突出"],
+                "suggestions": ["裁掉右侧干扰元素"],
+                "summary": "画面基本完整。",
+            }
+            analyze_image_bytes(b"image", "sample.jpg", "photography")
+            self.assertIn("光线", analyze.call_args.args[2])
+
     def test_normalize_model_payload_maps_scores_and_text(self):
         raw = {
             "scores": {"构图": "8", "色彩": 7, "主体": 6, "清晰度": 8, "视觉层次": 7},
