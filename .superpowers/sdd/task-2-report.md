@@ -72,3 +72,27 @@ Observed result: 21 tests ran, all passed.
 Full command: `python -m unittest discover -v`
 
 Observed result: 34 tests ran, all passed in 0.613 seconds.
+
+## Remaining Important Review Fixes
+
+- Required `scores` to be a dict, `issues` and `suggestions` to be lists whose items are strings, and `summary` to be a string.
+- Removed silent string conversion of issue, suggestion, and summary values.
+- Preserved `int()` score normalization, including numeric strings, while normalizing score conversion type errors to `ValueError`.
+- Added malformed nested-value coverage for null containers, non-string list items, and a non-string summary.
+- Added an analyzer regression proving a malformed nested result triggers exactly two model calls.
+
+### TDD Evidence
+
+RED command: `python -m unittest tests.test_rubric.RubricTests.test_validate_result_rejects_malformed_nested_values tests.test_analyzer.AnalyzerTests.test_malformed_nested_result_is_retried_once`
+
+Observed result: 2 tests produced 4 errors and 4 failures. Null containers leaked `TypeError`; non-string list items and summary values were silently accepted.
+
+GREEN focused command: `python -m unittest tests.test_rubric tests.test_analyzer`
+
+Observed result: 23 tests ran, all passed.
+
+Full command: `python -m unittest discover -s tests -v`
+
+Observed result: 36 tests ran, all passed in 0.658 seconds.
+
+Additional check: `git diff --check` exited 0 with only existing LF-to-CRLF conversion notices.

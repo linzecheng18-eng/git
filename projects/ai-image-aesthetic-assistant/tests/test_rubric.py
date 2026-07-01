@@ -33,6 +33,29 @@ class RubricTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "结果必须为对象"):
                     validate_result(payload)
 
+    def test_validate_result_rejects_malformed_nested_values(self):
+        valid = {
+            "scores": {name: 7 for name in DIMENSIONS},
+            "issues": ["issue"],
+            "suggestions": ["suggestion"],
+            "summary": "summary",
+        }
+        malformed_values = (
+            ("scores", None),
+            ("issues", None),
+            ("suggestions", None),
+            ("issues", [1]),
+            ("issues", [None]),
+            ("suggestions", [1]),
+            ("summary", 1),
+        )
+        for field, value in malformed_values:
+            with self.subTest(field=field, value=value):
+                payload = dict(valid)
+                payload[field] = value
+                with self.assertRaises(ValueError):
+                    validate_result(payload)
+
 
 if __name__ == "__main__":
     unittest.main()

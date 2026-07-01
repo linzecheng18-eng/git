@@ -127,6 +127,17 @@ class AnalyzerTests(unittest.TestCase):
             analyze_image_bytes(b"image", "sample.jpg", "photography")
         self.assertEqual(analyze.call_count, 2)
 
+    def test_malformed_nested_result_is_retried_once(self):
+        invalid = self.valid_payload()
+        invalid["issues"] = None
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze",
+            side_effect=[invalid, self.valid_payload()],
+        ) as analyze:
+            result = analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(result["summary"], "summary")
+        self.assertEqual(analyze.call_count, 2)
+
     def test_non_object_result_is_retried_once(self):
         with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
             "core.analyzer.ModelClient.analyze", return_value=None
