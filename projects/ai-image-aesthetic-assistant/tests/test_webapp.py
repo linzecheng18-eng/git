@@ -112,6 +112,29 @@ class WebAppTests(unittest.TestCase):
         )
         self.assert_error(response, payload, "400 Bad Request", "invalid_image_type")
 
+    def test_invalid_headers_do_not_consume_rate_limit(self):
+        valid_body = image_bytes("JPEG")
+        result = {"scores": {}, "issues": [], "suggestions": [], "summary": "ok"}
+        invalid_headers = (
+            ({"CONTENT_TYPE": "text/plain", "HTTP_X_IMAGE_TYPE": "photography"}, "invalid_content_type"),
+            ({"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "other"}, "invalid_image_type"),
+        )
+
+        for headers, error_code in invalid_headers:
+            with self.subTest(error_code=error_code), patch("webapp.rate_limiter", RateLimiter()):
+                for _ in range(11):
+                    response, payload = call_app("/api/analyze", "POST", b"image", headers)
+                    self.assert_error(response, payload, "400 Bad Request", error_code)
+
+                with patch("webapp.analyze_image_bytes", return_value=result):
+                    response, _ = call_app(
+                        "/api/analyze",
+                        "POST",
+                        valid_body,
+                        {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"},
+                    )
+                self.assertEqual(response["status"], "200 OK")
+
     def test_success_passes_image_type(self):
         body = image_bytes("JPEG")
         result = {"scores": {}, "issues": [], "suggestions": [], "summary": "ok"}
@@ -136,6 +159,39 @@ class WebAppTests(unittest.TestCase):
             )
         self.assert_error(response, payload, "400 Bad Request", "invalid_image")
         analyze.assert_not_called()
+
+    def test_supported_image_formats_reach_analysis(self):
+        result = {"scores": {}, "issues": [], "suggestions": [], "summary": "ok"}
+        cases = (
+            ("JPEG", "image/jpeg"),
+            ("PNG", "image/png"),
+            ("WEBP", "image/webp"),
+        )
+        for image_format, content_type in cases:
+            body = image_bytes(image_format)
+            with self.subTest(image_format=image_format), patch(
+                "webapp.analyze_image_bytes", return_value=result
+            ) as analyze:
+                response, _ = call_app(
+                    "/api/analyze",
+                    "POST",
+                    body,
+                    {"CONTENT_TYPE": content_type, "HTTP_X_IMAGE_TYPE": "photography"},
+                )
+            self.assertEqual(response["status"], "200 OK")
+            analyze.assert_called_once()
+
+    def test_unsupported_image_formats_do_not_reach_analysis(self):
+        for image_format in ("GIF", "BMP"):
+            with self.subTest(image_format=image_format), patch("webapp.analyze_image_bytes") as analyze:
+                response, payload = call_app(
+                    "/api/analyze",
+                    "POST",
+                    image_bytes(image_format),
+                    {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"},
+                )
+            self.assert_error(response, payload, "400 Bad Request", "invalid_image")
+            analyze.assert_not_called()
 
     def test_invalid_image_exceptions_return_safe_error(self):
         body = image_bytes("JPEG")
@@ -190,10 +246,15 @@ class WebAppTests(unittest.TestCase):
             self.assertNotIn(secret, logged)
 
     def test_rate_limit_rejects_eleventh_request(self):
-        limiter = RateLimiter(limit=10, window_seconds=60)
-        for _ in range(10):
-            self.assertTrue(limiter.allow("127.0.0.1", now=1000))
-        self.assertFalse(limiter.allow("127.0.0.1", now=1000))
+        body = image_bytes("JPEG")
+        result = {"scores": {}, "issues": [], "suggestions": [], "summary": "ok"}
+        headers = {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"}
+        with patch("webapp.analyze_image_bytes", return_value=result):
+            for _ in range(10):
+                response, _ = call_app("/api/analyze", "POST", body, headers)
+                self.assertEqual(response["status"], "200 OK")
+            response, payload = call_app("/api/analyze", "POST", body, headers)
+        self.assert_error(response, payload, "429 Too Many Requests", "rate_limited")
 
 
 if __name__ == "__main__":

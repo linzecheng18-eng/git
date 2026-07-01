@@ -102,15 +102,6 @@ def _analyze(environ, start_response):
             "图片不能超过 10 MiB。",
         )
 
-    source_ip = environ.get("REMOTE_ADDR", "")
-    if not rate_limiter.allow(source_ip):
-        return error_response(
-            start_response,
-            "429 Too Many Requests",
-            "rate_limited",
-            "请求过于频繁，请稍后再试。",
-        )
-
     if environ.get("CONTENT_TYPE") not in ALLOWED_CONTENT_TYPES:
         return error_response(
             start_response,
@@ -126,6 +117,15 @@ def _analyze(environ, start_response):
             "400 Bad Request",
             "invalid_image_type",
             "不支持的图片类型。",
+        )
+
+    source_ip = environ.get("REMOTE_ADDR", "")
+    if not rate_limiter.allow(source_ip):
+        return error_response(
+            start_response,
+            "429 Too Many Requests",
+            "rate_limited",
+            "请求过于频繁，请稍后再试。",
         )
 
     body = environ["wsgi.input"].read(length)
