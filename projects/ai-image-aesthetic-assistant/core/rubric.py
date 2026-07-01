@@ -9,6 +9,9 @@ def score_schema():
 
 
 def validate_result(result):
+    if not isinstance(result, dict):
+        raise ValueError("结果必须为对象")
+
     scores = dict(result.get("scores", {}))
     missing = [name for name in DIMENSIONS if name not in scores]
     if missing:

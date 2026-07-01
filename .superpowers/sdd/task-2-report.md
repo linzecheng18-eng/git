@@ -1,0 +1,74 @@
+# Task 2 Report: Strict Result Structure and Model Error Normalization
+
+## Status
+
+Completed and committed as `34880dce6ba56d1526f84b0b0e9062c694a11873` (`harden model result handling`).
+
+## Scope
+
+- Tightened `validate_result` so issues are non-empty, limited to 1–3, paired one-to-one with suggestions, and accompanied by a non-empty summary.
+- Added the strict Responses API JSON schema for all scores and text fields.
+- Added `ModelTimeoutError`, `ModelUnavailableError`, and `ModelResponseError`.
+- Normalized `HTTPError` and other `URLError` instances as unavailable; normalized `TimeoutError` as timeout; normalized malformed response payloads as response errors.
+- Retried exactly once for `ModelResponseError` and validation `ValueError`; timeout and unavailable errors are not caught by the retry loop.
+- Added focused regression coverage without changing API, frontend, or deployment files.
+
+## TDD Evidence
+
+### RED
+
+Command:
+
+`python -m unittest tests.test_analyzer -v`
+
+Observed result: import failed because `core.model_client.ModelResponseError` and the other required public error types did not exist. This was the expected missing-interface failure before production implementation.
+
+### GREEN
+
+Focused command:
+
+`python -m unittest tests.test_analyzer tests.test_rubric -v`
+
+Observed result: 17 tests ran, all passed.
+
+Full command:
+
+`python -m unittest discover -v`
+
+Observed result: 30 tests ran, all passed in 0.600 seconds.
+
+Additional check:
+
+`git diff --check`
+
+Observed result: exit code 0. Git emitted only existing line-ending conversion notices (LF to CRLF), with no whitespace errors.
+
+## Self-review
+
+- Verified `HTTPError` is caught before `URLError`, preserving the required 429/unavailable mapping.
+- Verified the retry loop catches only response/validation failures and makes at most two total attempts.
+- Verified all code changes are confined to the four requested Task 2 files.
+- No secrets or live credentials were added; tests use a placeholder API key.
+
+## Concerns
+
+None blocking. The repository's Git configuration reports LF-to-CRLF conversion notices for the touched files; these do not affect tests or the committed content.
+
+## Important Review Fixes
+
+- Normalized HTTP 200 response-body UTF-8 decoding failures and outer JSON parsing failures as `ModelResponseError`, allowing the analyzer's existing response-error policy to make exactly two total attempts.
+- Made `validate_result` explicitly reject non-dict top-level values with `ValueError`; arrays, strings, and null are covered, along with a two-attempt analyzer regression test.
+
+### TDD Evidence
+
+RED command: `python -m unittest tests.test_analyzer tests.test_rubric -v`
+
+Observed result: 21 tests ran with 7 expected errors. Corrupt response bodies leaked `UnicodeDecodeError` / `JSONDecodeError`, and non-object results leaked `AttributeError`, so neither path reached the required retry policy.
+
+GREEN focused command: `python -m unittest tests.test_analyzer tests.test_rubric -v`
+
+Observed result: 21 tests ran, all passed.
+
+Full command: `python -m unittest discover -v`
+
+Observed result: 34 tests ran, all passed in 0.613 seconds.

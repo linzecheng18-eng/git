@@ -104,6 +104,8 @@ class ModelClient:
             raise ModelTimeoutError("模型请求超时") from exc
         except URLError as exc:
             raise ModelUnavailableError("模型服务暂时不可用") from exc
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ModelResponseError("模型返回无效结果") from exc
 
         try:
             text = payload["output"][0]["content"][0]["text"]

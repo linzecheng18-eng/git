@@ -27,6 +27,12 @@ class RubricTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "缺少评分维度"):
             validate_result(payload)
 
+    def test_validate_result_rejects_non_object_top_level_values(self):
+        for payload in ([], "text", None):
+            with self.subTest(payload=payload):
+                with self.assertRaisesRegex(ValueError, "结果必须为对象"):
+                    validate_result(payload)
+
 
 if __name__ == "__main__":
     unittest.main()

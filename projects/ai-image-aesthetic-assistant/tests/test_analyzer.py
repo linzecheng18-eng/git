@@ -72,6 +72,29 @@ class AnalyzerTests(unittest.TestCase):
             with self.assertRaises(ModelResponseError):
                 client.analyze("encoded", "a.jpg", "prompt")
 
+    def test_invalid_http_response_body_is_normalized(self):
+        client = ModelClient()
+        client.mode = "real"
+        for body in (b"\xff", b"not-json"):
+            with self.subTest(body=body):
+                response = unittest.mock.MagicMock()
+                response.__enter__.return_value.read.return_value = body
+                with patch("core.model_client.request.urlopen", return_value=response):
+                    with self.assertRaises(ModelResponseError):
+                        client.analyze("encoded", "a.jpg", "prompt")
+
+    def test_invalid_http_response_body_is_retried_once(self):
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = b"not-json"
+        with patch.dict(os.environ, {"AI_IMAGE_EVAL_MODE": "real"}), patch(
+            "core.analyzer.image_to_base64", return_value="encoded"
+        ), patch(
+            "core.model_client.request.urlopen", return_value=response
+        ) as urlopen:
+            with self.assertRaises(ModelResponseError):
+                analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(urlopen.call_count, 2)
+
     def test_request_uses_strict_result_schema(self):
         client = ModelClient()
         client.mode = "real"
@@ -102,6 +125,14 @@ class AnalyzerTests(unittest.TestCase):
             side_effect=[invalid, self.valid_payload()],
         ) as analyze:
             analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(analyze.call_count, 2)
+
+    def test_non_object_result_is_retried_once(self):
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze", return_value=None
+        ) as analyze:
+            with self.assertRaises(ValueError):
+                analyze_image_bytes(b"image", "sample.jpg", "photography")
         self.assertEqual(analyze.call_count, 2)
 
     def test_timeout_is_not_retried(self):
