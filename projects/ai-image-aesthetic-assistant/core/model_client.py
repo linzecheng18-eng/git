@@ -1,6 +1,52 @@
 import json
 import os
 from urllib import request
+from urllib.error import HTTPError, URLError
+
+from core.rubric import DIMENSIONS
+
+
+class ModelTimeoutError(RuntimeError):
+    pass
+
+
+class ModelUnavailableError(RuntimeError):
+    pass
+
+
+class ModelResponseError(RuntimeError):
+    pass
+
+
+RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "scores": {
+            "type": "object",
+            "properties": {
+                name: {"type": "integer", "minimum": 1, "maximum": 10}
+                for name in DIMENSIONS
+            },
+            "required": DIMENSIONS,
+            "additionalProperties": False,
+        },
+        "issues": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 3,
+        },
+        "suggestions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 3,
+        },
+        "summary": {"type": "string", "minLength": 1},
+    },
+    "required": ["scores", "issues", "suggestions", "summary"],
+    "additionalProperties": False,
+}
 
 
 class ModelClient:
@@ -30,6 +76,14 @@ class ModelClient:
                         ],
                     }
                 ],
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "image_aesthetic_evaluation",
+                        "strict": True,
+                        "schema": RESULT_SCHEMA,
+                    }
+                },
             }
         ).encode("utf-8")
         req = request.Request(
@@ -41,8 +95,19 @@ class ModelClient:
             },
             method="POST",
         )
-        with request.urlopen(req, timeout=60) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-        text = payload["output"][0]["content"][0]["text"]
-        return json.loads(text)
+        try:
+            with request.urlopen(req, timeout=45) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except HTTPError as exc:
+            raise ModelUnavailableError("模型服务暂时不可用") from exc
+        except TimeoutError as exc:
+            raise ModelTimeoutError("模型请求超时") from exc
+        except URLError as exc:
+            raise ModelUnavailableError("模型服务暂时不可用") from exc
+
+        try:
+            text = payload["output"][0]["content"][0]["text"]
+            return json.loads(text)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            raise ModelResponseError("模型返回无效结果") from exc
 

@@ -1,12 +1,117 @@
+import json
 import os
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 from core.analyzer import analyze_image_bytes, normalize_model_payload
-from core.model_client import ModelClient
+from core.model_client import (
+    ModelClient,
+    ModelResponseError,
+    ModelTimeoutError,
+    ModelUnavailableError,
+)
+from core.rubric import DIMENSIONS, validate_result
 
 
 class AnalyzerTests(unittest.TestCase):
+    def valid_payload(self):
+        return {
+            "scores": {name: 7 for name in DIMENSIONS},
+            "issues": ["issue"],
+            "suggestions": ["suggestion"],
+            "summary": "summary",
+        }
+
+    def test_result_requires_paired_issues_and_suggestions(self):
+        payload = self.valid_payload()
+        payload["issues"] = ["issue one", "issue two"]
+        with self.assertRaisesRegex(ValueError, "数量必须一致"):
+            validate_result(payload)
+
+    def test_result_rejects_empty_summary(self):
+        payload = self.valid_payload()
+        payload["summary"] = " "
+        with self.assertRaisesRegex(ValueError, "总结不能为空"):
+            validate_result(payload)
+
+    def test_timeout_is_normalized(self):
+        client = ModelClient()
+        client.mode = "real"
+        client.api_key = "test-placeholder"
+        with patch("core.model_client.request.urlopen", side_effect=TimeoutError):
+            with self.assertRaises(ModelTimeoutError):
+                client.analyze("encoded", "a.jpg", "prompt")
+
+    def test_url_error_is_normalized_as_unavailable(self):
+        client = ModelClient()
+        client.mode = "real"
+        client.api_key = "test-placeholder"
+        with patch("core.model_client.request.urlopen", side_effect=URLError("down")):
+            with self.assertRaises(ModelUnavailableError):
+                client.analyze("encoded", "a.jpg", "prompt")
+
+    def test_upstream_http_error_is_normalized_as_unavailable(self):
+        client = ModelClient()
+        client.mode = "real"
+        client.api_key = "test-placeholder"
+        error = HTTPError("https://api.openai.com", 429, "rate", {}, None)
+        self.addCleanup(error.close)
+        with patch("core.model_client.request.urlopen", side_effect=error):
+            with self.assertRaises(ModelUnavailableError):
+                client.analyze("encoded", "a.jpg", "prompt")
+
+    def test_invalid_model_json_is_normalized(self):
+        client = ModelClient()
+        client.mode = "real"
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {"output": [{"content": [{"text": "not-json"}]}]}
+        ).encode()
+        with patch("core.model_client.request.urlopen", return_value=response):
+            with self.assertRaises(ModelResponseError):
+                client.analyze("encoded", "a.jpg", "prompt")
+
+    def test_request_uses_strict_result_schema(self):
+        client = ModelClient()
+        client.mode = "real"
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {"output": [{"content": [{"text": json.dumps(self.valid_payload())}]}]}
+        ).encode()
+        with patch("core.model_client.request.urlopen", return_value=response) as urlopen:
+            client.analyze("encoded", "a.jpg", "prompt")
+        body = json.loads(urlopen.call_args.args[0].data)
+        self.assertTrue(body["text"]["format"]["strict"])
+        self.assertFalse(body["text"]["format"]["schema"]["additionalProperties"])
+
+    def test_invalid_model_response_is_retried_once(self):
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze",
+            side_effect=[ModelResponseError("bad"), self.valid_payload()],
+        ) as analyze:
+            result = analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(result["summary"], "summary")
+        self.assertEqual(analyze.call_count, 2)
+
+    def test_invalid_validated_result_is_retried_once(self):
+        invalid = self.valid_payload()
+        invalid["summary"] = " "
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze",
+            side_effect=[invalid, self.valid_payload()],
+        ) as analyze:
+            analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(analyze.call_count, 2)
+
+    def test_timeout_is_not_retried(self):
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze", side_effect=ModelTimeoutError("timeout")
+        ) as analyze:
+            with self.assertRaises(ModelTimeoutError):
+                analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(analyze.call_count, 1)
+
     def test_analyzer_requires_image_type(self):
         with self.assertRaises(TypeError):
             analyze_image_bytes(b"image", "sample.jpg")
