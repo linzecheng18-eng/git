@@ -8,7 +8,7 @@ def normalize_model_payload(raw):
     return validate_result(raw)
 
 
-def analyze_image_bytes(image_bytes, filename, image_type="photography"):
+def analyze_image_bytes(image_bytes, filename, image_type):
     prompt = get_prompt(image_type)["prompt"]
     image_b64 = image_to_base64(image_bytes)
     raw = ModelClient().analyze(image_b64, filename, prompt)

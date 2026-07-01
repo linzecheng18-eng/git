@@ -16,6 +16,7 @@ def _manifest_fieldnames():
     return [
         "image_id",
         "file_name",
+        "image_type",
         "source",
         "category",
         "manual_构图",
@@ -65,6 +66,7 @@ def scaffold_manifest(image_dir=IMAGE_DIR, manifest_path=MANIFEST):
             {
                 "image_id": f"img-{index:03d}",
                 "file_name": image_path.name,
+                "image_type": "photography",
                 "source": "",
                 "category": "",
                 "manual_构图": "",
@@ -95,7 +97,9 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
         reader = csv.DictReader(handle)
         for row in reader:
             image_path = image_dir / row["file_name"]
-            payload = analyze_image_bytes(image_path.read_bytes(), row["file_name"])
+            payload = analyze_image_bytes(
+                image_path.read_bytes(), row["file_name"], row["image_type"]
+            )
             rows.append(
                 {
                     "image_id": row["image_id"],

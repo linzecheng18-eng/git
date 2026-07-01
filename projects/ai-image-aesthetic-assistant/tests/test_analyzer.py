@@ -7,6 +7,10 @@ from core.model_client import ModelClient
 
 
 class AnalyzerTests(unittest.TestCase):
+    def test_analyzer_requires_image_type(self):
+        with self.assertRaises(TypeError):
+            analyze_image_bytes(b"image", "sample.jpg")
+
     def test_analyzer_uses_selected_image_type(self):
         with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
             "core.analyzer.ModelClient.analyze"

@@ -22,7 +22,11 @@ class AppTests(unittest.TestCase):
                 "http://127.0.0.1:8765/api/analyze",
                 data=buffer.getvalue(),
                 method="POST",
-                headers={"Content-Type": "image/jpeg", "X-Filename": "sample.jpg"},
+                headers={
+                    "Content-Type": "image/jpeg",
+                    "X-Filename": "sample.jpg",
+                    "X-Image-Type": "photography",
+                },
             )
             with request.urlopen(req, timeout=10) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))

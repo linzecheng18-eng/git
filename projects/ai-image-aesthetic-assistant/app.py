@@ -35,8 +35,9 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length", "0"))
         filename = self.headers.get("X-Filename", "upload.jpg")
+        image_type = self.headers["X-Image-Type"]
         image_bytes = self.rfile.read(length)
-        payload = analyze_image_bytes(image_bytes, filename)
+        payload = analyze_image_bytes(image_bytes, filename, image_type)
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")

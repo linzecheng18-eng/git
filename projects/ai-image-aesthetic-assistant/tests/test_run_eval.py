@@ -46,6 +46,7 @@ class RunEvalTests(unittest.TestCase):
                     fieldnames=[
                         "image_id",
                         "file_name",
+                        "image_type",
                         "source",
                         "category",
                         "manual_构图",
@@ -62,6 +63,7 @@ class RunEvalTests(unittest.TestCase):
                     {
                         "image_id": "img-001",
                         "file_name": "sample.jpg",
+                        "image_type": "photography",
                         "source": "local",
                         "category": "demo",
                         "manual_构图": "7",
