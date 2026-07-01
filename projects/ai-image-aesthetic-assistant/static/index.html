@@ -14,6 +14,12 @@
     </section>
     <section class="panel">
       <input id="fileInput" type="file" accept="image/*">
+      <fieldset>
+        <legend>图片类型</legend>
+        <label><input type="radio" name="imageType" value="photography">摄影图片</label>
+        <label><input type="radio" name="imageType" value="ai_generated">AI 生成图片</label>
+        <label><input type="radio" name="imageType" value="social_media">社交媒体图片</label>
+      </fieldset>
       <button id="analyzeBtn">开始分析</button>
       <p id="status"></p>
       <div id="result"></div>

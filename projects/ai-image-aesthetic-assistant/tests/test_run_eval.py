@@ -25,6 +25,7 @@ class RunEvalTests(unittest.TestCase):
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["image_id"], "img-001")
             self.assertEqual(rows[0]["file_name"], "a.png")
+            self.assertEqual(rows[0]["image_type"], "")
             self.assertEqual(rows[1]["file_name"], "b.jpg")
             self.assertTrue(manifest_path.exists())
 
@@ -82,6 +83,28 @@ class RunEvalTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             self.assertEqual(rows[0]["image_id"], "img-001")
             self.assertIn("ai_构图", rows[0])
+
+    def test_run_eval_rejects_empty_image_type(self):
+        self._assert_invalid_image_type("")
+
+    def test_run_eval_rejects_unknown_image_type(self):
+        self._assert_invalid_image_type("other")
+
+    def _assert_invalid_image_type(self, image_type):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            image_dir = root / "images"
+            image_dir.mkdir()
+            manifest_path = root / "manifest.csv"
+            with manifest_path.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type"])
+                writer.writeheader()
+                writer.writerow(
+                    {"image_id": "img-001", "file_name": "missing.jpg", "image_type": image_type}
+                )
+
+            with self.assertRaisesRegex(ValueError, "image_type"):
+                run_eval(manifest_path, image_dir, root / "output.csv")
 
 
 if __name__ == "__main__":

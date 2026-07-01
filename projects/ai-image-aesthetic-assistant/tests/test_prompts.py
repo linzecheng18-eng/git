@@ -15,3 +15,11 @@ class PromptTests(unittest.TestCase):
     def test_unknown_type_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "不支持的图片类型"):
             get_prompt("other")
+
+    def test_prompt_requires_json_contract(self):
+        prompt = get_prompt("photography")["prompt"]
+        for keyword in ("JSON", "scores", "issues", "suggestions", "summary"):
+            self.assertIn(keyword, prompt)
+        for dimension in ("构图", "色彩", "主体", "清晰度", "视觉层次"):
+            self.assertIn(dimension, prompt)
+        self.assertIn("顺序对应", prompt)

@@ -9,6 +9,11 @@ button.addEventListener("click", async () => {
     statusText.textContent = "请先选择图片";
     return;
   }
+  const imageType = document.querySelector('input[name="imageType"]:checked');
+  if (!imageType) {
+    statusText.textContent = "请选择图片类型";
+    return;
+  }
 
   statusText.textContent = "分析中...";
   result.innerHTML = "";
@@ -17,6 +22,7 @@ button.addEventListener("click", async () => {
     method: "POST",
     headers: {
       "X-Filename": file.name,
+      "X-Image-Type": imageType.value,
       "Content-Type": file.type || "application/octet-stream",
     },
     body: await file.arrayBuffer(),

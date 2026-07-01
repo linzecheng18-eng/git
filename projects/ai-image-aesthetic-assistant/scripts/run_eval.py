@@ -2,6 +2,7 @@ import csv
 from pathlib import Path
 
 from core.analyzer import analyze_image_bytes
+from core.prompt_versions import IMAGE_TYPES
 
 DIMENSIONS = ["构图", "色彩", "主体", "清晰度", "视觉层次"]
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
@@ -66,7 +67,7 @@ def scaffold_manifest(image_dir=IMAGE_DIR, manifest_path=MANIFEST):
             {
                 "image_id": f"img-{index:03d}",
                 "file_name": image_path.name,
-                "image_type": "photography",
+                "image_type": "",
                 "source": "",
                 "category": "",
                 "manual_构图": "",
@@ -96,9 +97,12 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
     with manifest_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
+            image_type = row.get("image_type", "")
+            if image_type not in IMAGE_TYPES:
+                raise ValueError(f"invalid image_type: {image_type!r}")
             image_path = image_dir / row["file_name"]
             payload = analyze_image_bytes(
-                image_path.read_bytes(), row["file_name"], row["image_type"]
+                image_path.read_bytes(), row["file_name"], image_type
             )
             rows.append(
                 {
