@@ -18,6 +18,9 @@ def validate_result(result):
     missing = [name for name in DIMENSIONS if name not in scores]
     if missing:
         raise ValueError(f"缺少评分维度: {', '.join(missing)}")
+    extra = [name for name in scores if name not in DIMENSIONS]
+    if extra:
+        raise ValueError(f"额外评分维度: {', '.join(extra)}")
 
     normalized_scores = {}
     for name in DIMENSIONS:

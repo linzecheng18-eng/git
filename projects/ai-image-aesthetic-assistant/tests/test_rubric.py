@@ -27,6 +27,16 @@ class RubricTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "缺少评分维度"):
             validate_result(payload)
 
+    def test_validate_result_rejects_extra_dimension(self):
+        payload = {
+            "scores": {**{name: 7 for name in DIMENSIONS}, "extra": 7},
+            "issues": ["issue"],
+            "suggestions": ["suggestion"],
+            "summary": "summary",
+        }
+        with self.assertRaisesRegex(ValueError, "额外评分维度: extra"):
+            validate_result(payload)
+
     def test_validate_result_rejects_non_object_top_level_values(self):
         for payload in ([], "text", None):
             with self.subTest(payload=payload):

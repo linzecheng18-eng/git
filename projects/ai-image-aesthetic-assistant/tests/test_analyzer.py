@@ -138,6 +138,16 @@ class AnalyzerTests(unittest.TestCase):
         self.assertEqual(result["summary"], "summary")
         self.assertEqual(analyze.call_count, 2)
 
+    def test_extra_score_dimension_is_retried_once(self):
+        invalid = self.valid_payload()
+        invalid["scores"]["extra"] = 7
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze", return_value=invalid
+        ) as analyze:
+            with self.assertRaisesRegex(ValueError, "额外评分维度: extra"):
+                analyze_image_bytes(b"image", "sample.jpg", "photography")
+        self.assertEqual(analyze.call_count, 2)
+
     def test_non_object_result_is_retried_once(self):
         with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
             "core.analyzer.ModelClient.analyze", return_value=None
