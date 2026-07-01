@@ -7,9 +7,11 @@ const resetButton = document.getElementById("resetBtn");
 const statusText = document.getElementById("status");
 const preview = document.getElementById("preview");
 const result = document.getElementById("result");
+const resultTitle = document.getElementById("resultTitle");
 const summary = document.getElementById("summary");
 const diagnosis = document.getElementById("diagnosis");
 const scores = document.getElementById("scores");
+const imageTypeControls = document.querySelectorAll('input[name="imageType"]');
 
 function validateFile(file) {
   if (!file) throw new Error("请先选择图片。");
@@ -67,6 +69,29 @@ function renderResult(payload) {
   result.hidden = false;
 }
 
+async function parseJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function isValidPayload(payload) {
+  return payload !== null
+    && typeof payload === "object"
+    && typeof payload.summary === "string"
+    && Array.isArray(payload.issues)
+    && payload.issues.every((issue) => typeof issue === "string")
+    && Array.isArray(payload.suggestions)
+    && payload.suggestions.length === payload.issues.length
+    && payload.suggestions.every((suggestion) => typeof suggestion === "string")
+    && payload.scores !== null
+    && typeof payload.scores === "object"
+    && !Array.isArray(payload.scores)
+    && Object.values(payload.scores).every((score) => typeof score === "number");
+}
+
 button.addEventListener("click", async () => {
   if (button.disabled) return;
 
@@ -81,32 +106,64 @@ button.addEventListener("click", async () => {
   }
 
   button.disabled = true;
+  fileInput.disabled = true;
+  imageTypeControls.forEach((control) => {
+    control.disabled = true;
+  });
   button.textContent = "评测中…";
   statusText.textContent = "正在评测，请稍候。";
 
   try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: {
-        "Content-Type": file.type,
-        "X-Filename": file.name,
-        "X-Image-Type": imageType.value,
-      },
-      body: await file.arrayBuffer(),
-    });
-    const payload = await response.json();
+    let body;
+    try {
+      body = await file.arrayBuffer();
+    } catch {
+      statusText.textContent = "无法读取图片，请重新选择后重试。";
+      return;
+    }
+
+    let response;
+    try {
+      response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type,
+          "X-Filename": file.name,
+          "X-Image-Type": imageType.value,
+        },
+        body,
+      });
+    } catch {
+      statusText.textContent = "网络连接失败，请检查后重试。";
+      return;
+    }
+
+    const payload = await parseJsonResponse(response);
+    if (payload === null) {
+      statusText.textContent = "服务器返回的数据异常，请稍后重试。";
+      return;
+    }
     if (!response.ok) {
-      throw new Error(payload.error.message);
+      const message = payload?.error?.message;
+      statusText.textContent = typeof message === "string" && message.trim()
+        ? message
+        : "评测失败，请稍后重试。";
+      return;
+    }
+    if (!isValidPayload(payload)) {
+      statusText.textContent = "服务器返回的数据异常，请稍后重试。";
+      return;
     }
     renderResult(payload);
     statusText.textContent = "评测完成。";
+    resultTitle.focus();
     result.scrollIntoView({ behavior: "smooth", block: "start" });
-  } catch (error) {
-    statusText.textContent = error instanceof TypeError
-      ? "网络连接失败，请检查后重试。"
-      : error.message;
   } finally {
     button.disabled = false;
+    fileInput.disabled = false;
+    imageTypeControls.forEach((control) => {
+      control.disabled = false;
+    });
     button.textContent = "开始评测";
   }
 });
@@ -121,8 +178,8 @@ resetButton.addEventListener("click", () => {
   diagnosis.replaceChildren();
   scores.replaceChildren();
   statusText.textContent = "";
-  document.querySelectorAll('input[name="imageType"]').forEach((control) => {
+  imageTypeControls.forEach((control) => {
     control.checked = false;
   });
-  document.getElementById("imageTypeGroup").scrollIntoView({ behavior: "smooth" });
+  fileInput.focus();
 });

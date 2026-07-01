@@ -42,7 +42,6 @@ class StaticTests(unittest.TestCase):
             '"image/png"',
             '"image/webp"',
             "response.ok",
-            "payload.error.message",
             "网络连接失败，请检查后重试。",
             "button.disabled = true",
             "button.disabled = false",
@@ -50,6 +49,35 @@ class StaticTests(unittest.TestCase):
             "textContent",
         ):
             self.assertIn(fragment, self.script)
+
+    def test_response_errors_are_safely_parsed_and_use_stable_messages(self):
+        for fragment in (
+            "async function parseJsonResponse(response)",
+            "await response.json()",
+            "function isValidPayload(payload)",
+            "服务器返回的数据异常，请稍后重试。",
+            "评测失败，请稍后重试。",
+            "网络连接失败，请检查后重试。",
+        ):
+            self.assertIn(fragment, self.script)
+        self.assertNotIn("error instanceof TypeError", self.script)
+        self.assertNotIn("throw new Error(payload", self.script)
+
+    def test_request_locks_and_restores_every_mutable_input(self):
+        for fragment in (
+            'document.querySelectorAll(\'input[name="imageType"]\')',
+            "fileInput.disabled = true",
+            "fileInput.disabled = false",
+            "control.disabled = true",
+            "control.disabled = false",
+        ):
+            self.assertIn(fragment, self.script)
+
+    def test_result_and_reset_move_focus_programmatically(self):
+        self.assertIn('id="resultTitle" tabindex="-1"', self.html)
+        self.assertIn('document.getElementById("resultTitle")', self.script)
+        self.assertIn("resultTitle.focus()", self.script)
+        self.assertIn("fileInput.focus()", self.script)
 
     def test_preview_object_urls_are_released_on_change_and_reset(self):
         self.assertIn("URL.createObjectURL", self.script)
