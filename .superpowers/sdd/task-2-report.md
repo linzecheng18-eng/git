@@ -2,7 +2,7 @@
 
 ## Status
 
-Completed and committed as `34880dce6ba56d1526f84b0b0e9062c694a11873` (`harden model result handling`).
+Completed through implementation commit `8b5f18c` (`reject extra rubric dimensions`); the full Task 2 commit chain is recorded below.
 
 ## Scope
 
@@ -96,3 +96,36 @@ Full command: `python -m unittest discover -s tests -v`
 Observed result: 36 tests ran, all passed in 0.658 seconds.
 
 Additional check: `git diff --check` exited 0 with only existing LF-to-CRLF conversion notices.
+
+## Final Important Review Fix
+
+`validate_result` now requires the `scores` key set to equal `DIMENSIONS` exactly. A payload containing all five required dimensions plus a sixth dimension raises `ValueError` with the explicit message `额外评分维度: <name>`. The analyzer regression confirms this validation failure causes exactly two total model calls.
+
+### Final commit chain
+
+1. `34880dc` - harden model result handling
+2. `34461e6` - fix task 2 response validation gaps
+3. `ebf636c` - tighten nested rubric validation
+4. `8b5f18c` - reject extra rubric dimensions
+
+This report appendix is committed immediately after the final implementation commit above; `8b5f18c` is the final Task 2 production/test change.
+
+### Latest TDD and verification evidence
+
+RED command: `python -m unittest tests.test_rubric.RubricTests.test_validate_result_rejects_extra_dimension tests.test_analyzer.AnalyzerTests.test_extra_score_dimension_is_retried_once -v`
+
+Observed result: 2 tests failed because no `ValueError` was raised, confirming the extra dimension was silently accepted before the fix.
+
+GREEN regression command: the same command above.
+
+Observed result: 2 tests ran, all passed.
+
+Focused command: `python -m unittest tests.test_rubric tests.test_analyzer -v`
+
+Observed result: 25 tests ran, all passed.
+
+Full command: `python -m unittest discover -s tests -v`
+
+Observed result: 38 tests ran, all passed in 0.639 seconds.
+
+Additional check: `git diff --check` exited 0 with only the repository's existing LF-to-CRLF conversion notices.
