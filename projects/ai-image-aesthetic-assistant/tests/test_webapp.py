@@ -5,12 +5,20 @@ import unittest
 from unittest.mock import patch
 from wsgiref.util import setup_testing_defaults
 
+from PIL import Image
+
 from core.model_client import (
     ModelResponseError,
     ModelTimeoutError,
     ModelUnavailableError,
 )
 from webapp import RateLimiter, application
+
+
+def image_bytes(image_format):
+    output = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(output, format=image_format)
+    return output.getvalue()
 
 
 def call_app(path, method="GET", body=b"", headers=None):
@@ -105,27 +113,52 @@ class WebAppTests(unittest.TestCase):
         self.assert_error(response, payload, "400 Bad Request", "invalid_image_type")
 
     def test_success_passes_image_type(self):
+        body = image_bytes("JPEG")
         result = {"scores": {}, "issues": [], "suggestions": [], "summary": "ok"}
         with patch("webapp.analyze_image_bytes", return_value=result) as analyze:
             response, payload = call_app(
                 "/api/analyze",
                 "POST",
-                b"image",
+                body,
                 {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography", "HTTP_X_FILENAME": "sample.jpg"},
             )
         self.assertEqual(response["status"], "200 OK")
         self.assertEqual(json.loads(payload), result)
-        self.assertEqual(analyze.call_args.args, (b"image", "sample.jpg", "photography"))
+        self.assertEqual(analyze.call_args.args, (body, "sample.jpg", "photography"))
+
+    def test_rejects_gif_disguised_as_jpeg_before_analysis(self):
+        with patch("webapp.analyze_image_bytes") as analyze:
+            response, payload = call_app(
+                "/api/analyze",
+                "POST",
+                image_bytes("GIF"),
+                {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"},
+            )
+        self.assert_error(response, payload, "400 Bad Request", "invalid_image")
+        analyze.assert_not_called()
 
     def test_invalid_image_exceptions_return_safe_error(self):
+        body = image_bytes("JPEG")
         for error in (ValueError(), OSError()):
             with self.subTest(error=type(error).__name__), patch("webapp.analyze_image_bytes", side_effect=error):
                 response, payload = call_app(
-                    "/api/analyze", "POST", b"bad", {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"}
+                    "/api/analyze", "POST", body, {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"}
                 )
                 self.assert_error(response, payload, "400 Bad Request", "invalid_image")
 
+    def test_rejects_damaged_image_before_analysis(self):
+        with patch("webapp.analyze_image_bytes") as analyze:
+            response, payload = call_app(
+                "/api/analyze",
+                "POST",
+                b"not an image",
+                {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"},
+            )
+        self.assert_error(response, payload, "400 Bad Request", "invalid_image")
+        analyze.assert_not_called()
+
     def test_model_exceptions_are_mapped(self):
+        body = image_bytes("JPEG")
         cases = (
             (ModelTimeoutError(), "504 Gateway Timeout", "analysis_timeout"),
             (ModelUnavailableError(), "503 Service Unavailable", "analysis_unavailable"),
@@ -134,18 +167,19 @@ class WebAppTests(unittest.TestCase):
         for error, status, code in cases:
             with self.subTest(code=code), patch("webapp.analyze_image_bytes", side_effect=error):
                 response, payload = call_app(
-                    "/api/analyze", "POST", b"image", {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"}
+                    "/api/analyze", "POST", body, {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"}
                 )
                 self.assert_error(response, payload, status, code)
 
     def test_generic_error_log_contains_only_type_and_request_id(self):
+        body = image_bytes("JPEG")
         with patch("webapp.analyze_image_bytes", side_effect=RuntimeError("secret model text")), self.assertLogs(
             "webapp", logging.ERROR
         ) as logs:
             response, payload = call_app(
                 "/api/analyze",
                 "POST",
-                b"private image",
+                body,
                 {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography", "HTTP_X_FILENAME": "secret.jpg"},
             )
         self.assert_error(response, payload, "500 Internal Server Error", "internal_error")

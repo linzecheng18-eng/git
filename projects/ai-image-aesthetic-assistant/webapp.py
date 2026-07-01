@@ -2,8 +2,11 @@ import json
 import logging
 import time
 from collections import defaultdict, deque
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
+
+from PIL import Image
 
 from core.analyzer import analyze_image_bytes
 from core.model_client import (
@@ -129,6 +132,20 @@ def _analyze(environ, start_response):
     if len(body) != length:
         return error_response(
             start_response, "400 Bad Request", "invalid_request", "请求格式无效。"
+        )
+
+    try:
+        with Image.open(BytesIO(body)) as image:
+            if image.format not in {"JPEG", "PNG", "WEBP"}:
+                raise ValueError("unsupported image format")
+            image.verify()
+    except (ValueError, OSError) as error:
+        _log_exception(error, request_id)
+        return error_response(
+            start_response,
+            "400 Bad Request",
+            "invalid_image",
+            "图片无法识别，请重新选择。",
         )
 
     filename = environ.get("HTTP_X_FILENAME", "upload.jpg")
