@@ -74,6 +74,7 @@ def build_report(round_csv_path, report_path):
     total_rows = len(rows)
     product_metrics = calculate_product_metrics(rows)
     sample_count_passed = total_rows >= MINIMUM_SAMPLE_COUNT
+    judged_count_passed = product_metrics["judged_count"] >= MINIMUM_SAMPLE_COUNT
     diagnosis_threshold_passed = (
         product_metrics["diagnosis_accuracy_rate"] >= PRODUCT_THRESHOLD
     )
@@ -82,6 +83,7 @@ def build_report(round_csv_path, report_path):
     )
     product_acceptance_passed = (
         sample_count_passed
+        and judged_count_passed
         and diagnosis_threshold_passed
         and suggestion_threshold_passed
     )
@@ -105,7 +107,7 @@ def build_report(round_csv_path, report_path):
         "## Product acceptance metrics",
         "",
         f"- Sample count: {total_rows} / {MINIMUM_SAMPLE_COUNT} ({'MET' if sample_count_passed else 'NOT MET'})",
-        f"- Judged count: {product_metrics['judged_count']}",
+        f"- Judged count: {product_metrics['judged_count']} / {MINIMUM_SAMPLE_COUNT} ({'MET' if judged_count_passed else 'NOT MET'})",
         f"- Diagnosis accuracy rate: {product_metrics['diagnosis_accuracy_rate']:.2%} ({'MET' if diagnosis_threshold_passed else 'NOT MET'})",
         f"- Suggestion actionability rate: {product_metrics['suggestion_actionability_rate']:.2%} ({'MET' if suggestion_threshold_passed else 'NOT MET'})",
         f"- Product acceptance: {'PASSED' if product_acceptance_passed else 'NOT PASSED'}",
@@ -139,6 +141,7 @@ def build_report(round_csv_path, report_path):
         "largest_gap_cases": gap_cases[:5],
         **product_metrics,
         "sample_count_passed": sample_count_passed,
+        "judged_count_passed": judged_count_passed,
         "diagnosis_threshold_passed": diagnosis_threshold_passed,
         "suggestion_threshold_passed": suggestion_threshold_passed,
         "product_acceptance_passed": product_acceptance_passed,

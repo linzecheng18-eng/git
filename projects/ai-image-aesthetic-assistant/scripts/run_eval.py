@@ -20,6 +20,8 @@ def _manifest_fieldnames():
         "image_type",
         "source",
         "category",
+        "diagnosis_acceptable",
+        "suggestion_actionable",
         "manual_构图",
         "manual_色彩",
         "manual_主体",
@@ -36,6 +38,8 @@ def _result_fieldnames():
         "file_name",
         "source",
         "category",
+        "diagnosis_acceptable",
+        "suggestion_actionable",
         "ai_构图",
         "ai_色彩",
         "ai_主体",
@@ -70,6 +74,8 @@ def scaffold_manifest(image_dir=IMAGE_DIR, manifest_path=MANIFEST):
                 "image_type": "",
                 "source": "",
                 "category": "",
+                "diagnosis_acceptable": "",
+                "suggestion_actionable": "",
                 "manual_构图": "",
                 "manual_色彩": "",
                 "manual_主体": "",
@@ -97,6 +103,13 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
     with manifest_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
+            image_id = row.get("image_id", "")
+            judgments = {}
+            for field in ("diagnosis_acceptable", "suggestion_actionable"):
+                value = row.get(field, "").strip()
+                if value not in {"", "yes", "no"}:
+                    raise ValueError(f"invalid {field} for image_id {image_id}: {value!r}")
+                judgments[field] = value
             image_type = row.get("image_type", "")
             if image_type not in IMAGE_TYPES:
                 raise ValueError(f"invalid image_type: {image_type!r}")
@@ -110,6 +123,7 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
                     "file_name": row["file_name"],
                     "source": row.get("source", ""),
                     "category": row.get("category", ""),
+                    **judgments,
                     "ai_构图": payload["scores"]["构图"],
                     "ai_色彩": payload["scores"]["色彩"],
                     "ai_主体": payload["scores"]["主体"],

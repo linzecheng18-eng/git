@@ -128,5 +128,38 @@ class EvalReportTests(unittest.TestCase):
             self.assertIn("构图", content)
 
 
+    def test_fifty_total_rows_with_only_one_judged_is_not_accepted(self):
+        rows = [{"diagnosis_acceptable": "yes", "suggestion_actionable": "yes"}] + [
+            {"diagnosis_acceptable": "", "suggestion_actionable": ""} for _ in range(49)
+        ]
+        summary, content = self._build_product_report(rows)
+        self.assertTrue(summary["sample_count_passed"])
+        self.assertFalse(summary["judged_count_passed"])
+        self.assertFalse(summary["product_acceptance_passed"])
+        self.assertIn("Judged count: 1 / 50 (NOT MET)", content)
+
+    def test_fifty_judged_rows_at_both_thresholds_are_accepted(self):
+        rows = [
+            {"diagnosis_acceptable": "yes" if index < 35 else "no", "suggestion_actionable": "yes" if index >= 15 else "no"}
+            for index in range(50)
+        ]
+        summary, content = self._build_product_report(rows)
+        self.assertTrue(summary["judged_count_passed"])
+        self.assertTrue(summary["product_acceptance_passed"])
+        self.assertIn("Product acceptance: PASSED", content)
+
+    def _build_product_report(self, rows):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        round_csv = Path(tmpdir.name) / "round.csv"
+        report = Path(tmpdir.name) / "report.md"
+        with round_csv.open("w", encoding="utf-8-sig", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["diagnosis_acceptable", "suggestion_actionable"])
+            writer.writeheader()
+            writer.writerows(rows)
+        summary = build_report(round_csv, report)
+        return summary, report.read_text(encoding="utf-8")
+
+
 if __name__ == "__main__":
     unittest.main()

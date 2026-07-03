@@ -2,9 +2,11 @@ import csv
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
+from scripts.build_eval_report import build_report
 from scripts.run_eval import run_eval, scaffold_manifest
 
 
@@ -105,6 +107,62 @@ class RunEvalTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "image_type"):
                 run_eval(manifest_path, image_dir, root / "output.csv")
+
+
+    def test_scaffold_manifest_includes_empty_product_judgments(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            image_dir = root / "images"
+            image_dir.mkdir()
+            Image.new("RGB", (8, 8), "white").save(image_dir / "a.png")
+            rows = scaffold_manifest(image_dir, root / "manifest.csv")
+            self.assertEqual(rows[0]["diagnosis_acceptable"], "")
+            self.assertEqual(rows[0]["suggestion_actionable"], "")
+
+    def test_run_eval_preserves_and_normalizes_product_judgments(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "sample.jpg").write_bytes(b"image")
+            manifest = root / "manifest.csv"
+            with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
+                writer.writeheader()
+                writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": " yes ", "suggestion_actionable": "no"})
+            payload = {"scores": {name: 7 for name in ["构图", "色彩", "主体", "清晰度", "视觉层次"]}, "summary": "mock"}
+            with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
+                rows = run_eval(manifest, root, root / "round.csv")
+            self.assertEqual(rows[0]["diagnosis_acceptable"], "yes")
+            self.assertEqual(rows[0]["suggestion_actionable"], "no")
+
+    def test_run_eval_rejects_invalid_product_judgment_with_field_and_image_id(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest = root / "manifest.csv"
+            with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
+                writer.writeheader()
+                writer.writerow({"image_id": "img-009", "file_name": "missing.jpg", "image_type": "photography", "diagnosis_acceptable": "YES", "suggestion_actionable": ""})
+            with self.assertRaisesRegex(ValueError, "diagnosis_acceptable.*img-009"):
+                run_eval(manifest, root, root / "round.csv")
+
+    def test_manifest_to_round_to_report_preserves_product_metrics(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "sample.jpg").write_bytes(b"image")
+            manifest = root / "manifest.csv"
+            round_csv = root / "round.csv"
+            with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
+                writer.writeheader()
+                writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": "yes", "suggestion_actionable": "no"})
+            payload = {"scores": {name: 7 for name in ["构图", "色彩", "主体", "清晰度", "视觉层次"]}, "summary": "mock"}
+            with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
+                run_eval(manifest, root, round_csv)
+            summary = build_report(round_csv, root / "report.md")
+            self.assertEqual(summary["judged_count"], 1)
+            self.assertEqual(summary["diagnosis_accuracy_rate"], 1.0)
+            self.assertEqual(summary["suggestion_actionability_rate"], 0.0)
+            self.assertFalse(summary["product_acceptance_passed"])
 
 
 if __name__ == "__main__":
