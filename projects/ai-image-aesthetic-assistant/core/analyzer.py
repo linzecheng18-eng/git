@@ -18,5 +18,5 @@ def analyze_image_bytes(image_bytes, filename, image_type):
             return normalize_model_payload(raw)
         except (ModelResponseError, ValueError):
             if attempt == 1:
-                raise
+                raise ModelResponseError("模型返回的评测结果无效") from None
 

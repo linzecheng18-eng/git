@@ -26,19 +26,33 @@ function releasePreview() {
   }
 }
 
+function clearPreview() {
+  releasePreview();
+  preview.removeAttribute("src");
+  preview.hidden = true;
+}
+
 fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
   try {
     validateFile(file);
-    releasePreview();
+  } catch (error) {
+    fileInput.value = "";
+    clearPreview();
+    statusText.textContent = error.message;
+    return;
+  }
+  clearPreview();
+  try {
     const url = URL.createObjectURL(file);
     preview.dataset.url = url;
     preview.src = url;
     preview.hidden = false;
     statusText.textContent = "";
-  } catch (error) {
+  } catch {
     fileInput.value = "";
-    statusText.textContent = error.message;
+    clearPreview();
+    statusText.textContent = "无法预览图片，请重新选择。";
   }
 });
 
@@ -169,10 +183,8 @@ button.addEventListener("click", async () => {
 });
 
 resetButton.addEventListener("click", () => {
-  releasePreview();
+  clearPreview();
   fileInput.value = "";
-  preview.removeAttribute("src");
-  preview.hidden = true;
   result.hidden = true;
   summary.textContent = "";
   diagnosis.replaceChildren();

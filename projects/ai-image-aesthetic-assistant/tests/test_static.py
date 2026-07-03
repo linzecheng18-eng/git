@@ -82,9 +82,12 @@ class StaticTests(unittest.TestCase):
     def test_preview_object_urls_are_released_on_change_and_reset(self):
         self.assertIn("URL.createObjectURL", self.script)
         self.assertIn("URL.revokeObjectURL", self.script)
-        self.assertGreaterEqual(self.script.count("releasePreview()"), 3)
+        self.assertGreaterEqual(self.script.count("clearPreview()"), 3)
         self.assertIn('fileInput.addEventListener("change"', self.script)
         self.assertIn('resetButton.addEventListener("click"', self.script)
+        self.assertIn("无法预览图片，请重新选择。", self.script)
+        self.assertIn("preview.removeAttribute(\"src\")", self.script)
+        self.assertNotIn("statusText.textContent = error.message;\n  }\n});", self.script)
 
     def test_mobile_first_accessibility_constraints_exist(self):
         compact = "".join(self.styles.split())

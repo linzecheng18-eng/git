@@ -67,7 +67,9 @@
 
 ## 采集完成后怎么检查
 
-1. 运行 `scripts/run_eval.py`
-2. 运行 `scripts/build_eval_report.py`
-3. 运行 `scripts/audit_readiness.py`
-4. 把偏差最大的样本写进 `docs/iteration-log.md`
+1. 在 `manifest.csv` 填写 `image_type`、来源和人工五维基准分；`diagnosis_acceptable` 与 `suggestion_actionable` 保持为空。
+2. 运行 `scripts/run_eval.py`，生成包含 `image_type`、`issues`、`suggestions` 的 `round1.csv`。后两列是 JSON 数组，数组顺序一一对应。
+3. 查看 AI 的问题与建议后，在 `round1.csv` 人工填写 `diagnosis_acceptable` 与 `suggestion_actionable`（只能为 `yes` 或 `no`）。不要预先判断尚未生成的 AI 输出。
+4. 运行 `scripts/build_eval_report.py`；报告只消费人工编辑后的 round 文件来计算产品指标。
+5. 运行 `scripts/audit_readiness.py`。
+6. 把偏差最大的样本写进 `docs/iteration-log.md`。

@@ -76,6 +76,16 @@ $env:AI_IMAGE_EVAL_MODE='live'
 python app.py
 ```
 
+## 可审计评测顺序
+
+先在 `manifest.csv` 填写每张图的 `image_type` 等客观元数据，保持 `diagnosis_acceptable` 和 `suggestion_actionable` 为空；运行 `scripts/run_eval.py` 生成 `round1.csv`；再查看该轮输出的 `issues` 和 `suggestions`，由人工直接在 `round1.csv` 填写两个判断；最后运行 `scripts/build_eval_report.py`。不要在看到 AI 输出前预填这两个判断。`issues` 和 `suggestions` 是 JSON 数组单元格，可按相同下标追溯问题与建议；`image_type` 会保留在 round 文件中。
+
+## 代理与限流
+
+默认忽略 `X-Forwarded-For`，只使用直连的 `REMOTE_ADDR`。只有应用确实位于反向代理之后时，才把所有能直接连接应用的代理 IP 以逗号分隔配置到 `TRUSTED_PROXY_IPS`。应用仅在直连来源位于该白名单时解析转发链，并从右向左跳过可信代理，选择第一个不可信地址作为客户端地址。不要填写客户端网段，也不要把该变量配置成任意来源。
+
+内置限流器是单进程内存状态，适合当前单 worker 入口；多个 Gunicorn worker 或多个实例不会共享计数。公开部署更适合在负载均衡器、API 网关或其他外部平台实施统一限流。
+
 ## Docker 部署
 
 构建并以 mock 模式运行：

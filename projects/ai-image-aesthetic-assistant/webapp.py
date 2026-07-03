@@ -1,6 +1,10 @@
 import json
+import ipaddress
 import logging
+import os
+import threading
 import time
+import warnings
 from collections import defaultdict, deque
 from io import BytesIO
 from pathlib import Path
@@ -9,6 +13,7 @@ from uuid import uuid4
 from PIL import Image
 
 from core.analyzer import analyze_image_bytes
+from core.image_utils import validate_image_dimensions
 from core.model_client import (
     ModelResponseError,
     ModelTimeoutError,
@@ -54,19 +59,52 @@ class RateLimiter:
         self.limit = limit
         self.window_seconds = window_seconds
         self.requests = defaultdict(deque)
+        self.lock = threading.Lock()
 
     def allow(self, key, now=None):
         now = time.monotonic() if now is None else now
-        queue = self.requests[key]
-        while queue and queue[0] <= now - self.window_seconds:
-            queue.popleft()
-        if len(queue) >= self.limit:
-            return False
-        queue.append(now)
-        return True
+        with self.lock:
+            queue = self.requests[key]
+            while queue and queue[0] <= now - self.window_seconds:
+                queue.popleft()
+            if len(queue) >= self.limit:
+                return False
+            queue.append(now)
+            return True
 
 
 rate_limiter = RateLimiter()
+
+
+def _trusted_proxy_ips():
+    trusted = set()
+    for value in os.environ.get("TRUSTED_PROXY_IPS", "").split(","):
+        value = value.strip()
+        if not value:
+            continue
+        try:
+            trusted.add(str(ipaddress.ip_address(value)))
+        except ValueError:
+            continue
+    return trusted
+
+
+def _client_key(environ):
+    remote = environ.get("REMOTE_ADDR", "")
+    trusted = _trusted_proxy_ips()
+    if remote not in trusted:
+        return remote
+    forwarded = environ.get("HTTP_X_FORWARDED_FOR", "")
+    try:
+        chain = [str(ipaddress.ip_address(value.strip())) for value in forwarded.split(",")]
+    except ValueError:
+        return remote
+    if not forwarded or not chain:
+        return remote
+    for address in reversed(chain):
+        if address not in trusted:
+            return address
+    return remote
 
 
 def _static_response(start_response, filename, content_type):
@@ -119,7 +157,7 @@ def _analyze(environ, start_response):
             "不支持的图片类型。",
         )
 
-    source_ip = environ.get("REMOTE_ADDR", "")
+    source_ip = _client_key(environ)
     if not rate_limiter.allow(source_ip):
         return error_response(
             start_response,
@@ -135,11 +173,19 @@ def _analyze(environ, start_response):
         )
 
     try:
-        with Image.open(BytesIO(body)) as image:
-            if image.format not in {"JPEG", "PNG", "WEBP"}:
-                raise ValueError("unsupported image format")
-            image.verify()
-    except (ValueError, OSError) as error:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(body)) as image:
+                if image.format not in {"JPEG", "PNG", "WEBP"}:
+                    raise ValueError("unsupported image format")
+                validate_image_dimensions(image)
+                image.verify()
+    except (
+        Image.DecompressionBombWarning,
+        Image.DecompressionBombError,
+        ValueError,
+        OSError,
+    ) as error:
         _log_exception(error, request_id)
         return error_response(
             start_response,
@@ -151,7 +197,12 @@ def _analyze(environ, start_response):
     filename = environ.get("HTTP_X_FILENAME", "upload.jpg")
     try:
         result = analyze_image_bytes(body, filename, image_type)
-    except (ValueError, OSError) as error:
+    except (
+        Image.DecompressionBombWarning,
+        Image.DecompressionBombError,
+        ValueError,
+        OSError,
+    ) as error:
         _log_exception(error, request_id)
         return error_response(
             start_response,

@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 from core.analyzer import analyze_image_bytes
@@ -36,6 +37,7 @@ def _result_fieldnames():
     return [
         "image_id",
         "file_name",
+        "image_type",
         "source",
         "category",
         "diagnosis_acceptable",
@@ -51,6 +53,8 @@ def _result_fieldnames():
         "manual_清晰度",
         "manual_视觉层次",
         "manual_summary",
+        "issues",
+        "suggestions",
         "summary",
         "notes",
     ]
@@ -121,6 +125,7 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
                 {
                     "image_id": row["image_id"],
                     "file_name": row["file_name"],
+                    "image_type": image_type,
                     "source": row.get("source", ""),
                     "category": row.get("category", ""),
                     **judgments,
@@ -135,6 +140,8 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
                     "manual_清晰度": row.get("manual_清晰度", ""),
                     "manual_视觉层次": row.get("manual_视觉层次", ""),
                     "manual_summary": row.get("manual_summary", ""),
+                    "issues": json.dumps(payload["issues"], ensure_ascii=False),
+                    "suggestions": json.dumps(payload["suggestions"], ensure_ascii=False),
                     "summary": payload["summary"],
                     "notes": row.get("notes", ""),
                 }

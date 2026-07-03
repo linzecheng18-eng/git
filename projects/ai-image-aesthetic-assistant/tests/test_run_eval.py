@@ -1,4 +1,5 @@
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -128,7 +129,7 @@ class RunEvalTests(unittest.TestCase):
                 writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
                 writer.writeheader()
                 writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": "yes", "suggestion_actionable": "no"})
-            payload = {"scores": {name: 7 for name in ["构图", "色彩", "主体", "清晰度", "视觉层次"]}, "summary": "mock"}
+            payload = {"scores": {name: 7 for name in DIMENSIONS}, "issues": ["问题"], "suggestions": ["建议"], "summary": "mock"}
             with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
                 rows = run_eval(manifest, root, root / "round.csv")
             self.assertEqual(rows[0]["diagnosis_acceptable"], "yes")
@@ -163,7 +164,7 @@ class RunEvalTests(unittest.TestCase):
                     writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
                     writer.writeheader()
                     writer.writerow({"image_id": "img-020", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": value, "suggestion_actionable": value})
-                payload = {"scores": {name: 7 for name in DIMENSIONS}, "summary": "mock"}
+                payload = {"scores": {name: 7 for name in DIMENSIONS}, "issues": ["问题"], "suggestions": ["建议"], "summary": "mock"}
                 with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
                     rows = run_eval(manifest, root, root / "round.csv")
                 self.assertEqual(rows[0]["diagnosis_acceptable"], value)
@@ -189,15 +190,43 @@ class RunEvalTests(unittest.TestCase):
             with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
                 writer.writeheader()
-                writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": "yes", "suggestion_actionable": "no"})
-            payload = {"scores": {name: 7 for name in ["构图", "色彩", "主体", "清晰度", "视觉层次"]}, "summary": "mock"}
+                writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": "", "suggestion_actionable": ""})
+            payload = {"scores": {name: 7 for name in ["构图", "色彩", "主体", "清晰度", "视觉层次"]}, "issues": ["问题一", "问题二"], "suggestions": ["建议一", "建议二"], "summary": "mock"}
             with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
                 run_eval(manifest, root, round_csv)
+            with round_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+                round_rows = list(csv.DictReader(handle))
+            self.assertEqual(round_rows[0]["image_type"], "photography")
+            self.assertEqual(json.loads(round_rows[0]["issues"]), payload["issues"])
+            self.assertEqual(json.loads(round_rows[0]["suggestions"]), payload["suggestions"])
+            round_rows[0]["diagnosis_acceptable"] = "yes"
+            round_rows[0]["suggestion_actionable"] = "no"
+            with round_csv.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=round_rows[0].keys())
+                writer.writeheader()
+                writer.writerows(round_rows)
             summary = build_report(round_csv, root / "report.md")
             self.assertEqual(summary["judged_count"], 1)
             self.assertEqual(summary["diagnosis_accuracy_rate"], 1.0)
             self.assertEqual(summary["suggestion_actionability_rate"], 0.0)
             self.assertFalse(summary["product_acceptance_passed"])
+
+    def test_round_preserves_all_three_image_types(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest = root / "manifest.csv"
+            types = ("photography", "ai_generated", "social_media")
+            with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type"])
+                writer.writeheader()
+                for index, image_type in enumerate(types):
+                    name = f"{index}.jpg"
+                    (root / name).write_bytes(b"image")
+                    writer.writerow({"image_id": str(index), "file_name": name, "image_type": image_type})
+            payload = {"scores": {name: 7 for name in DIMENSIONS}, "issues": ["问题"], "suggestions": ["建议"], "summary": "mock"}
+            with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
+                rows = run_eval(manifest, root, root / "round.csv")
+            self.assertEqual([row["image_type"] for row in rows], list(types))
 
 
 if __name__ == "__main__":

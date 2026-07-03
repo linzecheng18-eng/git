@@ -1,7 +1,10 @@
 import io
 import json
 import logging
+import os
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 from wsgiref.util import setup_testing_defaults
 
@@ -12,7 +15,7 @@ from core.model_client import (
     ModelTimeoutError,
     ModelUnavailableError,
 )
-from webapp import RateLimiter, application
+from webapp import RateLimiter, application, _client_key
 
 
 def image_bytes(image_format):
@@ -227,6 +230,23 @@ class WebAppTests(unittest.TestCase):
                 )
                 self.assert_error(response, payload, status, code)
 
+    def test_invalid_rubric_results_map_to_invalid_analysis_end_to_end(self):
+        body = image_bytes("JPEG")
+        invalid = {
+            "scores": {name: 7 for name in ("构图", "色彩", "主体", "清晰度", "视觉层次")},
+            "issues": [],
+            "suggestions": [],
+            "summary": "summary",
+        }
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze", side_effect=[invalid, invalid]
+        ):
+            response, payload = call_app(
+                "/api/analyze", "POST", body,
+                {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"},
+            )
+        self.assert_error(response, payload, "502 Bad Gateway", "invalid_analysis")
+
     def test_generic_error_log_contains_only_type_and_request_id(self):
         body = image_bytes("JPEG")
         with patch("webapp.analyze_image_bytes", side_effect=RuntimeError("secret model text")), self.assertLogs(
@@ -255,6 +275,50 @@ class WebAppTests(unittest.TestCase):
                 self.assertEqual(response["status"], "200 OK")
             response, payload = call_app("/api/analyze", "POST", body, headers)
         self.assert_error(response, payload, "429 Too Many Requests", "rate_limited")
+
+    def test_rate_limiter_allows_at_most_ten_concurrent_requests_per_key(self):
+        limiter = RateLimiter()
+        barrier = threading.Barrier(40)
+
+        def request():
+            barrier.wait()
+            return limiter.allow("same-client", now=100.0)
+
+        with ThreadPoolExecutor(max_workers=40) as pool:
+            allowed = list(pool.map(lambda _: request(), range(40)))
+        self.assertEqual(sum(allowed), 10)
+
+    def test_client_key_only_trusts_forwarded_chain_from_configured_proxies(self):
+        with patch.dict(os.environ, {"TRUSTED_PROXY_IPS": "10.0.0.1,10.0.0.2"}, clear=False):
+            self.assertEqual(
+                _client_key({"REMOTE_ADDR": "10.0.0.2", "HTTP_X_FORWARDED_FOR": "198.51.100.7, 10.0.0.1"}),
+                "198.51.100.7",
+            )
+            self.assertEqual(
+                _client_key({"REMOTE_ADDR": "203.0.113.9", "HTTP_X_FORWARDED_FOR": "198.51.100.7"}),
+                "203.0.113.9",
+            )
+
+    def test_client_key_falls_back_for_missing_or_malformed_forwarding(self):
+        cases = ("", "garbage", "198.51.100.7, bad")
+        for forwarded in cases:
+            with self.subTest(forwarded=forwarded), patch.dict(
+                os.environ, {"TRUSTED_PROXY_IPS": "10.0.0.2"}, clear=False
+            ):
+                self.assertEqual(
+                    _client_key({"REMOTE_ADDR": "10.0.0.2", "HTTP_X_FORWARDED_FOR": forwarded}),
+                    "10.0.0.2",
+                )
+
+    def test_decompression_bomb_warning_and_error_are_invalid_images(self):
+        body = image_bytes("JPEG")
+        for error in (Image.DecompressionBombWarning("large"), Image.DecompressionBombError("large")):
+            with self.subTest(error=type(error).__name__), patch("webapp.Image.open", side_effect=error):
+                response, payload = call_app(
+                    "/api/analyze", "POST", body,
+                    {"CONTENT_TYPE": "image/jpeg", "HTTP_X_IMAGE_TYPE": "photography"},
+                )
+            self.assert_error(response, payload, "400 Bad Request", "invalid_image")
 
 
 if __name__ == "__main__":

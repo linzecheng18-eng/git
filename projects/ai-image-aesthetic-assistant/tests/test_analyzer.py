@@ -23,6 +23,15 @@ class AnalyzerTests(unittest.TestCase):
             "summary": "summary",
         }
 
+    def test_second_invalid_rubric_result_becomes_safe_model_response_error(self):
+        invalid = self.valid_payload()
+        invalid["issues"] = []
+        with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
+            "core.analyzer.ModelClient.analyze", side_effect=[invalid, invalid]
+        ):
+            with self.assertRaisesRegex(ModelResponseError, "模型返回的评测结果无效"):
+                analyze_image_bytes(b"image", "sample.jpg", "photography")
+
     def test_result_requires_paired_issues_and_suggestions(self):
         payload = self.valid_payload()
         payload["issues"] = ["issue one", "issue two"]
@@ -144,7 +153,7 @@ class AnalyzerTests(unittest.TestCase):
         with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
             "core.analyzer.ModelClient.analyze", return_value=invalid
         ) as analyze:
-            with self.assertRaisesRegex(ValueError, "额外评分维度: extra"):
+            with self.assertRaisesRegex(ModelResponseError, "模型返回的评测结果无效"):
                 analyze_image_bytes(b"image", "sample.jpg", "photography")
         self.assertEqual(analyze.call_count, 2)
 
@@ -152,7 +161,7 @@ class AnalyzerTests(unittest.TestCase):
         with patch("core.analyzer.image_to_base64", return_value="encoded"), patch(
             "core.analyzer.ModelClient.analyze", return_value=None
         ) as analyze:
-            with self.assertRaises(ValueError):
+            with self.assertRaisesRegex(ModelResponseError, "模型返回的评测结果无效"):
                 analyze_image_bytes(b"image", "sample.jpg", "photography")
         self.assertEqual(analyze.call_count, 2)
 
