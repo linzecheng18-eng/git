@@ -1,0 +1,6 @@
+.env
+.git
+__pycache__/
+*.pyc
+data/test_set/images/
+data/eval_results/

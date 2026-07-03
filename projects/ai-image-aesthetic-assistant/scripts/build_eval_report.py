@@ -1,6 +1,9 @@
 import csv
 from pathlib import Path
 
+PRODUCT_THRESHOLD = 0.7
+MINIMUM_SAMPLE_COUNT = 50
+
 DIMENSIONS = ["构图", "色彩", "主体", "清晰度", "视觉层次"]
 
 
@@ -9,6 +12,29 @@ def _to_int(value):
     if not text:
         return None
     return int(text)
+
+
+def calculate_product_metrics(rows):
+    judged = [
+        row
+        for row in rows
+        if row.get("diagnosis_acceptable") in {"yes", "no"}
+        and row.get("suggestion_actionable") in {"yes", "no"}
+    ]
+    total = len(judged)
+    return {
+        "judged_count": total,
+        "diagnosis_accuracy_rate": (
+            sum(row["diagnosis_acceptable"] == "yes" for row in judged) / total
+            if total
+            else 0.0
+        ),
+        "suggestion_actionability_rate": (
+            sum(row["suggestion_actionable"] == "yes" for row in judged) / total
+            if total
+            else 0.0
+        ),
+    }
 
 
 def build_report(round_csv_path, report_path):
@@ -46,6 +72,19 @@ def build_report(round_csv_path, report_path):
             )
 
     total_rows = len(rows)
+    product_metrics = calculate_product_metrics(rows)
+    sample_count_passed = total_rows >= MINIMUM_SAMPLE_COUNT
+    diagnosis_threshold_passed = (
+        product_metrics["diagnosis_accuracy_rate"] >= PRODUCT_THRESHOLD
+    )
+    suggestion_threshold_passed = (
+        product_metrics["suggestion_actionability_rate"] >= PRODUCT_THRESHOLD
+    )
+    product_acceptance_passed = (
+        sample_count_passed
+        and diagnosis_threshold_passed
+        and suggestion_threshold_passed
+    )
     missing_manual_rows = total_rows - len(completed_rows)
     completion_rate = round(len(completed_rows) / total_rows, 2) if total_rows else 0.0
 
@@ -62,6 +101,14 @@ def build_report(round_csv_path, report_path):
         f"- 已完成人工评分：{len(completed_rows)} / {total_rows}",
         f"- 待补人工评分：{missing_manual_rows}",
         f"- 人工评分完成率：{completion_rate}",
+        "",
+        "## Product acceptance metrics",
+        "",
+        f"- Sample count: {total_rows} / {MINIMUM_SAMPLE_COUNT} ({'MET' if sample_count_passed else 'NOT MET'})",
+        f"- Judged count: {product_metrics['judged_count']}",
+        f"- Diagnosis accuracy rate: {product_metrics['diagnosis_accuracy_rate']:.2%} ({'MET' if diagnosis_threshold_passed else 'NOT MET'})",
+        f"- Suggestion actionability rate: {product_metrics['suggestion_actionability_rate']:.2%} ({'MET' if suggestion_threshold_passed else 'NOT MET'})",
+        f"- Product acceptance: {'PASSED' if product_acceptance_passed else 'NOT PASSED'}",
         "",
         "## 各维度平均绝对误差",
         "",
@@ -90,6 +137,11 @@ def build_report(round_csv_path, report_path):
         "completion_rate": completion_rate,
         "dimension_mae": dimension_mae,
         "largest_gap_cases": gap_cases[:5],
+        **product_metrics,
+        "sample_count_passed": sample_count_passed,
+        "diagnosis_threshold_passed": diagnosis_threshold_passed,
+        "suggestion_threshold_passed": suggestion_threshold_passed,
+        "product_acceptance_passed": product_acceptance_passed,
     }
 
 

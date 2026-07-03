@@ -57,3 +57,59 @@
 - 还没有完成人工对照评分
 - 还没有基于真实偏差的 v2 提示词迭代
 - 因此还不能把“已完成数据验证迭代”写成既成事实
+
+## 本地启动
+
+默认使用 `mock` 模式，不需要 API 密钥。Windows 当前 bundled Python：
+
+```powershell
+$env:AI_IMAGE_EVAL_MODE='mock'
+& 'C:\Users\w\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' app.py
+```
+
+通用 Python 环境：
+
+```powershell
+python -m pip install -r requirements.txt
+$env:AI_IMAGE_EVAL_MODE='mock'
+python app.py
+```
+
+真实 API 模式仅引用已由运行环境安全配置的 `OPENAI_API_KEY`，不要在命令行展开或打印该变量：
+
+```powershell
+$env:AI_IMAGE_EVAL_MODE='live'
+python app.py
+```
+
+## Docker 部署
+
+构建并以 mock 模式运行：
+
+```powershell
+docker build -t ai-image-aesthetic-assistant .
+docker run --rm -p 8000:8000 -e AI_IMAGE_EVAL_MODE=mock ai-image-aesthetic-assistant
+```
+
+在另一个终端检查健康状态：
+
+```powershell
+curl.exe --fail http://127.0.0.1:8000/healthz
+```
+
+预期响应为 `{"status":"ok"}`。
+
+云平台需要配置以下环境变量：
+
+- `AI_IMAGE_EVAL_MODE`：`mock` 或 `live`
+- `AI_IMAGE_EVAL_MODEL`：默认 `gpt-5.4-mini`
+- `OPENAI_API_KEY`：仅在 `live` 模式由平台密钥存储注入
+- `PORT`：默认 `8000`
+
+容器监听 `0.0.0.0:${PORT}`。不要提交 `.env`、测试图片或评测输出。
+
+## 效果验收
+
+`manifest.csv` 的 `image_type` 只允许 `photography`、`ai_generated`、`social_media`；`diagnosis_acceptable` 和 `suggestion_actionable` 只允许 `yes`、`no` 或空值。指标分母只统计两个判断字段都有效的行。
+
+只有样本数至少 50，且诊断准确率和建议可执行率都达到 70%，才能声明产品效果验收通过。当前真实样本和人工判断不足，不得声称通过。

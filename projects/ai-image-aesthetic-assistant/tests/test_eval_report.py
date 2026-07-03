@@ -3,10 +3,58 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_eval_report import build_report
+from scripts.build_eval_report import build_report, calculate_product_metrics
 
 
 class EvalReportTests(unittest.TestCase):
+    def test_report_calculates_product_success_rates(self):
+        rows = [
+            {"diagnosis_acceptable": "yes", "suggestion_actionable": "yes"},
+            {"diagnosis_acceptable": "yes", "suggestion_actionable": "no"},
+            {"diagnosis_acceptable": "no", "suggestion_actionable": "yes"},
+            {"diagnosis_acceptable": "", "suggestion_actionable": "yes"},
+            {"diagnosis_acceptable": "yes", "suggestion_actionable": "invalid"},
+        ]
+
+        metrics = calculate_product_metrics(rows)
+
+        self.assertEqual(metrics["judged_count"], 3)
+        self.assertAlmostEqual(metrics["diagnosis_accuracy_rate"], 2 / 3)
+        self.assertAlmostEqual(metrics["suggestion_actionability_rate"], 2 / 3)
+
+    def test_report_marks_fewer_than_fifty_samples_as_not_accepted(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            round_csv = Path(tmpdir) / "round1.csv"
+            report_path = Path(tmpdir) / "report.md"
+            with round_csv.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=["diagnosis_acceptable", "suggestion_actionable"],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "diagnosis_acceptable": "yes",
+                        "suggestion_actionable": "yes",
+                    }
+                )
+
+            summary = build_report(round_csv, report_path)
+
+            self.assertEqual(summary["judged_count"], 1)
+            self.assertEqual(summary["diagnosis_accuracy_rate"], 1.0)
+            self.assertEqual(summary["suggestion_actionability_rate"], 1.0)
+            self.assertFalse(summary["sample_count_passed"])
+            self.assertTrue(summary["diagnosis_threshold_passed"])
+            self.assertTrue(summary["suggestion_threshold_passed"])
+            self.assertFalse(summary["product_acceptance_passed"])
+            content = report_path.read_text(encoding="utf-8")
+            self.assertIn("Sample count: 1 / 50 (NOT MET)", content)
+            self.assertIn("Judged count: 1", content)
+            self.assertIn("Diagnosis accuracy rate: 100.00% (MET)", content)
+            self.assertIn("Suggestion actionability rate: 100.00% (MET)", content)
+            self.assertIn("Product acceptance: NOT PASSED", content)
+
     def test_build_report_summarizes_completed_rows_and_errors(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             round_csv = Path(tmpdir) / "round1.csv"
