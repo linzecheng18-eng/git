@@ -106,7 +106,7 @@ def run_eval(manifest_path=MANIFEST, image_dir=IMAGE_DIR, output_path=OUTPUT):
             image_id = row.get("image_id", "")
             judgments = {}
             for field in ("diagnosis_acceptable", "suggestion_actionable"):
-                value = row.get(field, "").strip()
+                value = row.get(field, "")
                 if value not in {"", "yes", "no"}:
                     raise ValueError(f"invalid {field} for image_id {image_id}: {value!r}")
                 judgments[field] = value

@@ -7,7 +7,7 @@ from unittest.mock import patch
 from PIL import Image
 
 from scripts.build_eval_report import build_report
-from scripts.run_eval import run_eval, scaffold_manifest
+from scripts.run_eval import DIMENSIONS, run_eval, scaffold_manifest
 
 
 class RunEvalTests(unittest.TestCase):
@@ -119,7 +119,7 @@ class RunEvalTests(unittest.TestCase):
             self.assertEqual(rows[0]["diagnosis_acceptable"], "")
             self.assertEqual(rows[0]["suggestion_actionable"], "")
 
-    def test_run_eval_preserves_and_normalizes_product_judgments(self):
+    def test_run_eval_preserves_valid_product_judgments(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             (root / "sample.jpg").write_bytes(b"image")
@@ -127,12 +127,47 @@ class RunEvalTests(unittest.TestCase):
             with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
                 writer.writeheader()
-                writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": " yes ", "suggestion_actionable": "no"})
+                writer.writerow({"image_id": "img-001", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": "yes", "suggestion_actionable": "no"})
             payload = {"scores": {name: 7 for name in ["构图", "色彩", "主体", "清晰度", "视觉层次"]}, "summary": "mock"}
             with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
                 rows = run_eval(manifest, root, root / "round.csv")
             self.assertEqual(rows[0]["diagnosis_acceptable"], "yes")
             self.assertEqual(rows[0]["suggestion_actionable"], "no")
+
+    def test_run_eval_accepts_only_exact_product_judgment_values(self):
+        for field, value in (
+            ("diagnosis_acceptable", " yes "),
+            ("diagnosis_acceptable", "Yes"),
+            ("suggestion_actionable", "no "),
+            ("suggestion_actionable", "Yes"),
+        ):
+            with self.subTest(field=field, value=value), tempfile.TemporaryDirectory() as tmpdir:
+                root = Path(tmpdir)
+                manifest = root / "manifest.csv"
+                judgments = {"diagnosis_acceptable": "", "suggestion_actionable": ""}
+                judgments[field] = value
+                with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
+                    writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
+                    writer.writeheader()
+                    writer.writerow({"image_id": "img-019", "file_name": "missing.jpg", "image_type": "photography", **judgments})
+                with self.assertRaisesRegex(ValueError, f"{field}.*img-019"):
+                    run_eval(manifest, root, root / "round.csv")
+
+    def test_run_eval_accepts_all_three_exact_product_judgment_values(self):
+        for value in ("", "yes", "no"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmpdir:
+                root = Path(tmpdir)
+                (root / "sample.jpg").write_bytes(b"image")
+                manifest = root / "manifest.csv"
+                with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
+                    writer = csv.DictWriter(handle, fieldnames=["image_id", "file_name", "image_type", "diagnosis_acceptable", "suggestion_actionable"])
+                    writer.writeheader()
+                    writer.writerow({"image_id": "img-020", "file_name": "sample.jpg", "image_type": "photography", "diagnosis_acceptable": value, "suggestion_actionable": value})
+                payload = {"scores": {name: 7 for name in DIMENSIONS}, "summary": "mock"}
+                with patch("scripts.run_eval.analyze_image_bytes", return_value=payload):
+                    rows = run_eval(manifest, root, root / "round.csv")
+                self.assertEqual(rows[0]["diagnosis_acceptable"], value)
+                self.assertEqual(rows[0]["suggestion_actionable"], value)
 
     def test_run_eval_rejects_invalid_product_judgment_with_field_and_image_id(self):
         with tempfile.TemporaryDirectory() as tmpdir:
