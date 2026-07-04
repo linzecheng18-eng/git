@@ -4,6 +4,19 @@ from core.rubric import DIMENSIONS, validate_result
 
 
 class RubricTests(unittest.TestCase):
+    def _valid_payload(self, score=7):
+        return {"scores": {name: score for name in DIMENSIONS}, "issues": ["issue"],
+                "suggestions": ["suggestion"], "summary": "summary"}
+
+    def test_scores_accept_integer_and_decimal_integer_string(self):
+        self.assertEqual(validate_result(self._valid_payload("8"))["scores"][DIMENSIONS[0]], 8)
+
+    def test_scores_reject_bool_float_and_decimal_float_string(self):
+        for value in (True, False, 8.0, "8.0"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, f"^{DIMENSIONS[0]} 分值必须为整数$"):
+                    validate_result(self._valid_payload(value))
+
     def test_dimensions_are_fixed(self):
         self.assertEqual(DIMENSIONS, ["构图", "色彩", "主体", "清晰度", "视觉层次"])
 

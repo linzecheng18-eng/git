@@ -18,6 +18,29 @@ class ModelResponseError(RuntimeError):
     pass
 
 
+def extract_output_text(payload):
+    try:
+        output = payload["output"]
+        if not isinstance(output, list):
+            raise TypeError
+        for item in output:
+            if not isinstance(item, dict) or item.get("type") != "message":
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for part in content:
+                if (
+                    isinstance(part, dict)
+                    and part.get("type") == "output_text"
+                    and isinstance(part.get("text"), str)
+                ):
+                    return part["text"]
+    except (KeyError, TypeError) as exc:
+        raise ModelResponseError("模型返回无效结果") from exc
+    raise ModelResponseError("模型返回无效结果")
+
+
 RESULT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -53,7 +76,7 @@ class ModelClient:
     def __init__(self):
         self.mode = os.getenv("AI_IMAGE_EVAL_MODE", "mock")
         self.api_key = os.getenv("OPENAI_API_KEY", "")
-        self.model = os.getenv("AI_IMAGE_EVAL_MODEL", "gpt-4.1-mini")
+        self.model = os.getenv("AI_IMAGE_EVAL_MODEL", "gpt-5.4-mini")
 
     def analyze(self, image_b64, filename, prompt_text):
         if self.mode == "mock":
@@ -108,8 +131,8 @@ class ModelClient:
             raise ModelResponseError("模型返回无效结果") from exc
 
         try:
-            text = payload["output"][0]["content"][0]["text"]
+            text = extract_output_text(payload)
             return json.loads(text)
-        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+        except (ModelResponseError, json.JSONDecodeError) as exc:
             raise ModelResponseError("模型返回无效结果") from exc
 

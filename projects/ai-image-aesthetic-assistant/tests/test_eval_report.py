@@ -1,4 +1,5 @@
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,31 @@ from scripts.build_eval_report import build_report, calculate_product_metrics
 
 
 class EvalReportTests(unittest.TestCase):
+    def _complete_evidence_row(self, index, diagnosis="yes", suggestion="yes"):
+        row = {
+            "image_id": f"img-{index:03d}", "image_type": "photography",
+            "issues": json.dumps(["issue"]), "suggestions": json.dumps(["suggestion"]),
+            "summary": "summary", "diagnosis_acceptable": diagnosis,
+            "suggestion_actionable": suggestion,
+        }
+        row.update({f"ai_{name}": "8" for name in __import__("scripts.build_eval_report", fromlist=["DIMENSIONS"]).DIMENSIONS})
+        return row
+
+    def test_two_column_fifty_row_csv_is_invalid_evidence_and_not_accepted(self):
+        rows = [{"diagnosis_acceptable": "yes", "suggestion_actionable": "yes"} for _ in range(50)]
+        summary, content = self._build_product_report(rows, raw=True)
+        self.assertEqual(summary["total_rows"], 0)
+        self.assertEqual(summary["invalid_evidence_count"], 50)
+        self.assertFalse(summary["product_acceptance_passed"])
+        self.assertIn("Invalid evidence: 50", content)
+
+    def test_fifty_complete_evidence_rows_can_be_accepted(self):
+        rows = [self._complete_evidence_row(i) for i in range(50)]
+        summary, content = self._build_product_report(rows)
+        self.assertEqual(summary["total_rows"], 50)
+        self.assertEqual(summary["invalid_evidence_count"], 0)
+        self.assertTrue(summary["product_acceptance_passed"])
+        self.assertIn("Product acceptance: PASSED", content)
     def test_report_calculates_product_success_rates(self):
         rows = [
             {"diagnosis_acceptable": "yes", "suggestion_actionable": "yes"},
@@ -26,19 +52,11 @@ class EvalReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             round_csv = Path(tmpdir) / "round1.csv"
             report_path = Path(tmpdir) / "report.md"
+            row = self._complete_evidence_row(1)
             with round_csv.open("w", encoding="utf-8-sig", newline="") as handle:
-                writer = csv.DictWriter(
-                    handle,
-                    fieldnames=["diagnosis_acceptable", "suggestion_actionable"],
-                )
+                writer = csv.DictWriter(handle, fieldnames=list(row))
                 writer.writeheader()
-                writer.writerow(
-                    {
-                        "diagnosis_acceptable": "yes",
-                        "suggestion_actionable": "yes",
-                    }
-                )
-
+                writer.writerow(row)
             summary = build_report(round_csv, report_path)
 
             self.assertEqual(summary["judged_count"], 1)
@@ -64,6 +82,7 @@ class EvalReportTests(unittest.TestCase):
                     handle,
                     fieldnames=[
                         "image_id",
+                        "image_type",
                         "file_name",
                         "ai_构图",
                         "ai_色彩",
@@ -76,12 +95,16 @@ class EvalReportTests(unittest.TestCase):
                         "manual_清晰度",
                         "manual_视觉层次",
                         "notes",
+                        "issues",
+                        "suggestions",
+                        "summary",
                     ],
                 )
                 writer.writeheader()
                 writer.writerow(
                     {
                         "image_id": "img-001",
+                        "image_type": "photography",
                         "file_name": "a.jpg",
                         "ai_构图": "8",
                         "ai_色彩": "7",
@@ -94,11 +117,15 @@ class EvalReportTests(unittest.TestCase):
                         "manual_清晰度": "5",
                         "manual_视觉层次": "5",
                         "notes": "主体略弱",
+                        "issues": '["issue"]',
+                        "suggestions": '["suggestion"]',
+                        "summary": "summary",
                     }
                 )
                 writer.writerow(
                     {
                         "image_id": "img-002",
+                        "image_type": "photography",
                         "file_name": "b.jpg",
                         "ai_构图": "7",
                         "ai_色彩": "7",
@@ -111,6 +138,9 @@ class EvalReportTests(unittest.TestCase):
                         "manual_清晰度": "",
                         "manual_视觉层次": "",
                         "notes": "",
+                        "issues": '["issue"]',
+                        "suggestions": '["suggestion"]',
+                        "summary": "summary",
                     }
                 )
 
@@ -148,13 +178,16 @@ class EvalReportTests(unittest.TestCase):
         self.assertTrue(summary["product_acceptance_passed"])
         self.assertIn("Product acceptance: PASSED", content)
 
-    def _build_product_report(self, rows):
+    def _build_product_report(self, rows, raw=False):
         tmpdir = tempfile.TemporaryDirectory()
         self.addCleanup(tmpdir.cleanup)
         round_csv = Path(tmpdir.name) / "round.csv"
         report = Path(tmpdir.name) / "report.md"
+        if not raw and "image_id" not in rows[0]:
+            rows = [self._complete_evidence_row(i, row["diagnosis_acceptable"], row["suggestion_actionable"])
+                    for i, row in enumerate(rows)]
         with round_csv.open("w", encoding="utf-8-sig", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["diagnosis_acceptable", "suggestion_actionable"])
+            writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
             writer.writeheader()
             writer.writerows(rows)
         summary = build_report(round_csv, report)

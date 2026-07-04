@@ -19,31 +19,31 @@
 2. 先自动生成样本清单：
 
 ```powershell
-& 'C:\Users\w\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -c "from scripts.run_eval import scaffold_manifest; scaffold_manifest()"
+python -c "from scripts.run_eval import scaffold_manifest; scaffold_manifest()"
 ```
 
 3. 在 `data/test_set/manifest.csv` 中补全人工评分
 4. 运行批量评测：
 
 ```powershell
-& 'C:\Users\w\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts\run_eval.py
+python scripts\run_eval.py
 ```
 
 5. 生成评测报告：
 
 ```powershell
-& 'C:\Users\w\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts\build_eval_report.py
+python scripts\build_eval_report.py
 ```
 
 6. 查看当前准备度：
 
 ```powershell
-& 'C:\Users\w\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts\audit_readiness.py
+python scripts\audit_readiness.py
 ```
 
 7. 人工评分怎么填，可直接参考：
 
-- [manual-scoring-guide.md](C:/Users/w/OneDrive/文档/自我/projects/ai-image-aesthetic-assistant/docs/manual-scoring-guide.md)
+- [manual-scoring-guide.md](docs/manual-scoring-guide.md)
 
 ## 当前不能声称已完成的部分
 
@@ -58,7 +58,7 @@
 
 ```powershell
 $env:AI_IMAGE_EVAL_MODE='mock'
-& 'C:\Users\w\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' app.py
+python app.py
 ```
 
 通用 Python 环境：

@@ -10,11 +10,30 @@ from core.model_client import (
     ModelResponseError,
     ModelTimeoutError,
     ModelUnavailableError,
+    extract_output_text,
 )
 from core.rubric import DIMENSIONS, validate_result
 
 
 class AnalyzerTests(unittest.TestCase):
+    def test_extract_output_text_skips_reasoning_and_finds_message_content(self):
+        payload = {"output": [
+            {"type": "reasoning", "content": []},
+            {"type": "message", "content": [
+                {"type": "refusal", "refusal": "ignored"},
+                {"type": "output_text", "text": "result"},
+            ]},
+        ]}
+        self.assertEqual(extract_output_text(payload), "result")
+
+    def test_extract_output_text_rejects_response_without_output_text(self):
+        with self.assertRaises(ModelResponseError):
+            extract_output_text({"output": [{"type": "message", "content": []}]})
+
+    def test_default_model_is_gpt_5_4_mini(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(ModelClient().model, "gpt-5.4-mini")
+
     def valid_payload(self):
         return {
             "scores": {name: 7 for name in DIMENSIONS},
@@ -109,7 +128,9 @@ class AnalyzerTests(unittest.TestCase):
         client.mode = "real"
         response = unittest.mock.MagicMock()
         response.__enter__.return_value.read.return_value = json.dumps(
-            {"output": [{"content": [{"text": json.dumps(self.valid_payload())}]}]}
+            {"output": [{"type": "message", "content": [
+                {"type": "output_text", "text": json.dumps(self.valid_payload())}
+            ]}]}
         ).encode()
         with patch("core.model_client.request.urlopen", return_value=response) as urlopen:
             client.analyze("encoded", "a.jpg", "prompt")

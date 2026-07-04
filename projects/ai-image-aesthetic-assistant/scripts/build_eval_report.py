@@ -1,17 +1,49 @@
 import csv
+import json
 from pathlib import Path
 
 PRODUCT_THRESHOLD = 0.7
 MINIMUM_SAMPLE_COUNT = 50
 
 DIMENSIONS = ["构图", "色彩", "主体", "清晰度", "视觉层次"]
+IMAGE_TYPES = {"photography", "ai_generated", "social_media"}
 
 
 def _to_int(value):
     text = str(value).strip()
     if not text:
         return None
-    return int(text)
+    if not text.isdecimal():
+        return None
+    number = int(text)
+    return number if 1 <= number <= 10 else None
+
+
+def _evidence_errors(row):
+    errors = []
+    if not str(row.get("image_id", "")).strip():
+        errors.append("missing image_id")
+    if row.get("image_type") not in IMAGE_TYPES:
+        errors.append("invalid image_type")
+    if any(_to_int(row.get(f"ai_{name}")) is None for name in DIMENSIONS):
+        errors.append("invalid AI scores")
+    parsed = {}
+    for field in ("issues", "suggestions"):
+        try:
+            value = json.loads(row.get(field, ""))
+        except (TypeError, json.JSONDecodeError):
+            value = None
+        if not isinstance(value, list) or not 1 <= len(value) <= 3 or not all(
+            isinstance(item, str) and item.strip() for item in value
+        ):
+            errors.append(f"invalid {field}")
+        parsed[field] = value
+    if isinstance(parsed["issues"], list) and isinstance(parsed["suggestions"], list):
+        if len(parsed["issues"]) != len(parsed["suggestions"]):
+            errors.append("issues/suggestions count mismatch")
+    if not str(row.get("summary", "")).strip():
+        errors.append("missing summary")
+    return errors
 
 
 def calculate_product_metrics(rows):
@@ -44,11 +76,20 @@ def build_report(round_csv_path, report_path):
     with round_csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
 
+    invalid_evidence = []
+    valid_rows = []
+    for index, row in enumerate(rows, 1):
+        errors = _evidence_errors(row)
+        if errors:
+            invalid_evidence.append((index, errors))
+        else:
+            valid_rows.append(row)
+
     completed_rows = []
     gap_cases = []
     dimension_diffs = {name: [] for name in DIMENSIONS}
 
-    for row in rows:
+    for row in valid_rows:
         row_gap = 0
         has_manual_scores = True
         for name in DIMENSIONS:
@@ -71,8 +112,8 @@ def build_report(round_csv_path, report_path):
                 }
             )
 
-    total_rows = len(rows)
-    product_metrics = calculate_product_metrics(rows)
+    total_rows = len(valid_rows)
+    product_metrics = calculate_product_metrics(valid_rows)
     sample_count_passed = total_rows >= MINIMUM_SAMPLE_COUNT
     judged_count_passed = product_metrics["judged_count"] >= MINIMUM_SAMPLE_COUNT
     diagnosis_threshold_passed = (
@@ -82,7 +123,8 @@ def build_report(round_csv_path, report_path):
         product_metrics["suggestion_actionability_rate"] >= PRODUCT_THRESHOLD
     )
     product_acceptance_passed = (
-        sample_count_passed
+        not invalid_evidence
+        and sample_count_passed
         and judged_count_passed
         and diagnosis_threshold_passed
         and suggestion_threshold_passed
@@ -111,6 +153,7 @@ def build_report(round_csv_path, report_path):
         f"- Diagnosis accuracy rate: {product_metrics['diagnosis_accuracy_rate']:.2%} ({'MET' if diagnosis_threshold_passed else 'NOT MET'})",
         f"- Suggestion actionability rate: {product_metrics['suggestion_actionability_rate']:.2%} ({'MET' if suggestion_threshold_passed else 'NOT MET'})",
         f"- Product acceptance: {'PASSED' if product_acceptance_passed else 'NOT PASSED'}",
+        f"- Invalid evidence: {len(invalid_evidence)}",
         "",
         "## 各维度平均绝对误差",
         "",
@@ -129,11 +172,20 @@ def build_report(round_csv_path, report_path):
     else:
         report_lines.append("- 暂无可计算样本")
 
+    report_lines.extend(["", "## Invalid evidence rows", ""])
+    if invalid_evidence:
+        report_lines.extend(
+            f"- Row {index}: {', '.join(errors)}" for index, errors in invalid_evidence
+        )
+    else:
+        report_lines.append("- None")
+
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
     return {
         "total_rows": total_rows,
+        "invalid_evidence_count": len(invalid_evidence),
         "completed_rows": len(completed_rows),
         "missing_manual_rows": missing_manual_rows,
         "completion_rate": completion_rate,
