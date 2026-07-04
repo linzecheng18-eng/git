@@ -8,6 +8,7 @@ import warnings
 from collections import defaultdict, deque
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import unquote
 from uuid import uuid4
 
 from PIL import Image
@@ -194,7 +195,7 @@ def _analyze(environ, start_response):
             "图片无法识别，请重新选择。",
         )
 
-    filename = environ.get("HTTP_X_FILENAME", "upload.jpg")
+    filename = unquote(environ.get("HTTP_X_FILENAME", "upload.jpg"))
     try:
         result = analyze_image_bytes(body, filename, image_type)
     except (

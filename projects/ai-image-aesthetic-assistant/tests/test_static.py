@@ -18,6 +18,10 @@ class StaticTests(unittest.TestCase):
         self.assertNotIn(" checked", self.html)
         self.assertIn('"X-Image-Type"', self.script)
 
+    def test_non_ascii_filename_is_encoded_before_being_used_as_header(self):
+        self.assertIn('"X-Filename": encodeURIComponent(file.name)', self.script)
+        self.assertNotIn('"X-Filename": file.name', self.script)
+
     def test_semantic_upload_status_and_result_structure_exist(self):
         for fragment in (
             '<fieldset id="imageTypeGroup">',

@@ -152,6 +152,23 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(json.loads(payload), result)
         self.assertEqual(analyze.call_args.args, (body, "sample.jpg", "photography"))
 
+    def test_decodes_percent_encoded_non_ascii_filename(self):
+        body = image_bytes("JPEG")
+        result = {"scores": {}, "issues": [], "suggestions": [], "summary": "ok"}
+        with patch("webapp.analyze_image_bytes", return_value=result) as analyze:
+            response, _ = call_app(
+                "/api/analyze",
+                "POST",
+                body,
+                {
+                    "CONTENT_TYPE": "image/jpeg",
+                    "HTTP_X_IMAGE_TYPE": "photography",
+                    "HTTP_X_FILENAME": "%E6%B5%8B%E8%AF%95%E5%9B%BE%E7%89%87.jpg",
+                },
+            )
+        self.assertEqual(response["status"], "200 OK")
+        self.assertEqual(analyze.call_args.args, (body, "测试图片.jpg", "photography"))
+
     def test_rejects_gif_disguised_as_jpeg_before_analysis(self):
         with patch("webapp.analyze_image_bytes") as analyze:
             response, payload = call_app(

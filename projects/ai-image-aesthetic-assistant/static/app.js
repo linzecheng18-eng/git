@@ -142,7 +142,7 @@ button.addEventListener("click", async () => {
         method: "POST",
         headers: {
           "Content-Type": file.type,
-          "X-Filename": file.name,
+          "X-Filename": encodeURIComponent(file.name),
           "X-Image-Type": imageType.value,
         },
         body,
