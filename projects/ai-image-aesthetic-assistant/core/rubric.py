@@ -25,12 +25,9 @@ def validate_result(result):
     normalized_scores = {}
     for name in DIMENSIONS:
         raw_value = scores[name]
-        if isinstance(raw_value, bool) or not (
-            isinstance(raw_value, int)
-            or (isinstance(raw_value, str) and raw_value.isdecimal())
-        ):
+        if type(raw_value) is not int:
             raise ValueError(f"{name} 分值必须为整数")
-        value = int(raw_value)
+        value = raw_value
         if value < 1 or value > 10:
             raise ValueError(f"{name} 分值超出范围")
         normalized_scores[name] = value

@@ -8,11 +8,11 @@ class RubricTests(unittest.TestCase):
         return {"scores": {name: score for name in DIMENSIONS}, "issues": ["issue"],
                 "suggestions": ["suggestion"], "summary": "summary"}
 
-    def test_scores_accept_integer_and_decimal_integer_string(self):
-        self.assertEqual(validate_result(self._valid_payload("8"))["scores"][DIMENSIONS[0]], 8)
+    def test_scores_accept_integer(self):
+        self.assertEqual(validate_result(self._valid_payload(8))["scores"][DIMENSIONS[0]], 8)
 
-    def test_scores_reject_bool_float_and_decimal_float_string(self):
-        for value in (True, False, 8.0, "8.0"):
+    def test_scores_reject_string_bool_and_float(self):
+        for value in ("8", True, False, 8.0, "8.0"):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, f"^{DIMENSIONS[0]} 分值必须为整数$"):
                     validate_result(self._valid_payload(value))

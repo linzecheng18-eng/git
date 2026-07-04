@@ -43,6 +43,9 @@ def _evidence_errors(row):
             errors.append("issues/suggestions count mismatch")
     if not str(row.get("summary", "")).strip():
         errors.append("missing summary")
+    for field in ("diagnosis_acceptable", "suggestion_actionable"):
+        if row.get(field) not in {"yes", "no"}:
+            errors.append(f"invalid {field}")
     return errors
 
 

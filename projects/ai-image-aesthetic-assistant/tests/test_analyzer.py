@@ -213,7 +213,7 @@ class AnalyzerTests(unittest.TestCase):
 
     def test_normalize_model_payload_maps_scores_and_text(self):
         raw = {
-            "scores": {"构图": "8", "色彩": 7, "主体": 6, "清晰度": 8, "视觉层次": 7},
+            "scores": {"构图": 8, "色彩": 7, "主体": 6, "清晰度": 8, "视觉层次": 7},
             "issues": ["背景干扰主体"],
             "suggestions": ["简化背景元素"],
             "summary": "主体明确，但背景信息偏多。",

@@ -33,6 +33,22 @@ class EvalReportTests(unittest.TestCase):
         self.assertEqual(summary["invalid_evidence_count"], 0)
         self.assertTrue(summary["product_acceptance_passed"])
         self.assertIn("Product acceptance: PASSED", content)
+
+    def test_complete_rows_plus_empty_judgment_are_invalid_and_not_accepted(self):
+        rows = [self._complete_evidence_row(i) for i in range(50)]
+        rows.append(self._complete_evidence_row(50, diagnosis=""))
+        summary, content = self._build_product_report(rows)
+        self.assertGreater(summary["invalid_evidence_count"], 0)
+        self.assertFalse(summary["product_acceptance_passed"])
+        self.assertIn("Product acceptance: NOT PASSED", content)
+
+    def test_complete_rows_plus_invalid_judgment_are_invalid_and_not_accepted(self):
+        rows = [self._complete_evidence_row(i) for i in range(50)]
+        rows.append(self._complete_evidence_row(50, suggestion="invalid"))
+        summary, content = self._build_product_report(rows)
+        self.assertGreater(summary["invalid_evidence_count"], 0)
+        self.assertFalse(summary["product_acceptance_passed"])
+        self.assertIn("Product acceptance: NOT PASSED", content)
     def test_report_calculates_product_success_rates(self):
         rows = [
             {"diagnosis_acceptable": "yes", "suggestion_actionable": "yes"},
@@ -98,6 +114,8 @@ class EvalReportTests(unittest.TestCase):
                         "issues",
                         "suggestions",
                         "summary",
+                        "diagnosis_acceptable",
+                        "suggestion_actionable",
                     ],
                 )
                 writer.writeheader()
@@ -120,6 +138,8 @@ class EvalReportTests(unittest.TestCase):
                         "issues": '["issue"]',
                         "suggestions": '["suggestion"]',
                         "summary": "summary",
+                        "diagnosis_acceptable": "yes",
+                        "suggestion_actionable": "yes",
                     }
                 )
                 writer.writerow(
@@ -141,6 +161,8 @@ class EvalReportTests(unittest.TestCase):
                         "issues": '["issue"]',
                         "suggestions": '["suggestion"]',
                         "summary": "summary",
+                        "diagnosis_acceptable": "yes",
+                        "suggestion_actionable": "yes",
                     }
                 )
 
@@ -158,12 +180,13 @@ class EvalReportTests(unittest.TestCase):
             self.assertIn("构图", content)
 
 
-    def test_fifty_total_rows_with_only_one_judged_is_not_accepted(self):
+    def test_fifty_total_rows_with_only_one_judged_are_invalid_evidence(self):
         rows = [{"diagnosis_acceptable": "yes", "suggestion_actionable": "yes"}] + [
             {"diagnosis_acceptable": "", "suggestion_actionable": ""} for _ in range(49)
         ]
         summary, content = self._build_product_report(rows)
-        self.assertTrue(summary["sample_count_passed"])
+        self.assertEqual(summary["invalid_evidence_count"], 49)
+        self.assertFalse(summary["sample_count_passed"])
         self.assertFalse(summary["judged_count_passed"])
         self.assertFalse(summary["product_acceptance_passed"])
         self.assertIn("Judged count: 1 / 50 (NOT MET)", content)
