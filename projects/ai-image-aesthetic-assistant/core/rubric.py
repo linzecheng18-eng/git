@@ -7,7 +7,6 @@ def score_schema():
         "scale": {"min": 1, "max": 10},
     }
 
-
 def validate_result(result):
     if not isinstance(result, dict):
         raise ValueError("结果必须为对象")

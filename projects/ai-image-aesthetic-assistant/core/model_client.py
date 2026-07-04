@@ -135,4 +135,3 @@ class ModelClient:
             return json.loads(text)
         except (ModelResponseError, json.JSONDecodeError) as exc:
             raise ModelResponseError("模型返回无效结果") from exc
-

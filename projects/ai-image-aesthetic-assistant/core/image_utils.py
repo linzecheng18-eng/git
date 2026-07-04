@@ -29,4 +29,3 @@ def image_to_base64(image_bytes):
             buffer = io.BytesIO()
             image.save(buffer, format="JPEG", quality=88)
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
-
