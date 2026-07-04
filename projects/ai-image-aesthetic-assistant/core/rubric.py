@@ -61,4 +61,3 @@ def validate_result(result):
         "suggestions": suggestions,
         "summary": summary,
     }
-
