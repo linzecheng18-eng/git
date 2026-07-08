@@ -3,55 +3,156 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI 图片审美评测助手</title>
+  <title>AI 图片审美与故事分析助手</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="page">
-    <header class="hero">
-      <p class="eyebrow">给普通创作者的图片反馈</p>
-      <h1>AI 图片审美评测助手</h1>
-      <p>上传一张图片，获取五维评分与可直接执行的修改建议。</p>
-    </header>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
 
-    <section class="panel" aria-labelledby="uploadTitle">
-      <h2 id="uploadTitle">上传图片</h2>
-      <fieldset id="imageTypeGroup">
-        <legend>这是什么类型的图片？</legend>
-        <div class="type-options">
-          <label><input type="radio" name="imageType" value="photography"> 摄影照片</label>
-          <label><input type="radio" name="imageType" value="ai_generated"> AI 生成图</label>
-          <label><input type="radio" name="imageType" value="social_media"> 社交媒体配图</label>
+  <main class="app-shell">
+    <aside class="studio-sidebar" aria-label="工作台导航">
+      <div class="brand-mark">
+        <span>GS</span>
+      </div>
+      <p class="eyebrow">Gallery Story Studio</p>
+      <h1>AI 图片审美与故事分析助手</h1>
+      <p class="sidebar-copy">从“图片好不好看”升级到“图片表达了什么、哪里打动人、还能怎么讲好”。</p>
+
+      <nav class="side-nav" aria-label="分析模块">
+        <a class="side-link active" href="#studio">新建分析</a>
+        <a class="side-link" href="#resultPreview">结果预览</a>
+        <a class="side-link" href="#inspiration">样本灵感</a>
+      </nav>
+    </aside>
+
+    <section class="workspace" id="studio">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">温暖人文 · 审美评分 · 图像故事</p>
+          <h2>让图片先被理解，再被优化。</h2>
         </div>
-      </fieldset>
+        <div class="status-pill" aria-label="原型状态">
+          <span class="pulse-dot"></span>
+          静态交互原型
+        </div>
+      </header>
 
-      <label class="upload-box" for="fileInput">
-        <span>选择一张 JPG、PNG 或 WebP 图片</span>
-        <small>文件大小不超过 10 MiB</small>
-      </label>
-      <input class="visually-hidden" id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
-      <img id="preview" alt="待评测图片预览" hidden>
-      <button id="analyzeBtn" type="button">开始评测</button>
-      <p id="status" role="status" aria-live="polite"></p>
-    </section>
+      <section class="mode-grid" aria-label="选择分析模式">
+        <button class="mode-card active" type="button" data-mode="story">
+          <span class="mode-kicker">推荐</span>
+          <strong>图像故事模式</strong>
+          <small>整理人物、地点、场景、情绪和可发布文案。</small>
+        </button>
+        <button class="mode-card" type="button" data-mode="aesthetic">
+          <span class="mode-kicker">基础</span>
+          <strong>审美评测模式</strong>
+          <small>分析构图、色彩、主体、清晰度和视觉层次。</small>
+        </button>
+        <button class="mode-card" type="button" data-mode="identity">
+          <span class="mode-kicker">扩展</span>
+          <strong>人物地点识别</strong>
+          <small>基于用户补充信息，整理照片背后的故事线索。</small>
+        </button>
+      </section>
 
-    <section id="result" class="result" hidden>
-      <h2 id="resultTitle" tabindex="-1">评测结果</h2>
-      <section aria-labelledby="summaryTitle">
-        <h3 id="summaryTitle">总结</h3>
-        <p id="summary"></p>
+      <section class="creation-panel" aria-labelledby="uploadTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Step 01</p>
+            <h2 id="uploadTitle">上传图片与补充背景</h2>
+          </div>
+          <p id="status" role="status" aria-live="polite">选择模式后，上传图片即可预览静态结果。</p>
+        </div>
+
+        <fieldset id="imageTypeGroup">
+          <legend>图片类型</legend>
+          <div class="type-options">
+            <label><input type="radio" name="imageType" value="photography"> 摄影照片</label>
+            <label><input type="radio" name="imageType" value="ai_generated"> AI 生成图</label>
+            <label><input type="radio" name="imageType" value="social_media"> 社交媒体配图</label>
+          </div>
+        </fieldset>
+
+        <div class="upload-layout">
+          <label class="upload-box" for="fileInput">
+            <span>选择一张 JPG、PNG 或 WebP 图片</span>
+            <small>这里先做本地预览，不接真实识别功能。</small>
+          </label>
+          <input class="visually-hidden" id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
+          <img id="preview" alt="待分析图片预览" hidden>
+        </div>
+
+        <label class="notes-field" for="backgroundNotes">
+          <span>背景信息</span>
+          <textarea id="backgroundNotes" rows="4" placeholder="例如：这是一次海边旅行照片，想表达轻松、怀念的感觉，准备用来发朋友圈。"></textarea>
+        </label>
+
+        <button id="analyzeBtn" type="button">查看静态分析效果</button>
       </section>
-      <section aria-labelledby="diagnosisTitle">
-        <h3 id="diagnosisTitle">问题与对应建议</h3>
-        <div id="diagnosis" class="diagnosis"></div>
+
+      <section class="progress-panel" aria-label="分析进度演示">
+        <div class="progress-step is-active" data-step="read">读取画面</div>
+        <div class="progress-step" data-step="identify">识别信息</div>
+        <div class="progress-step" data-step="story">提炼故事</div>
+        <div class="progress-step" data-step="advice">生成建议</div>
       </section>
-      <section aria-labelledby="scoresTitle">
-        <h3 id="scoresTitle">五维评分</h3>
-        <div id="scores" class="scores"></div>
+
+      <section id="resultPreview" class="result-preview" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Step 02</p>
+            <h2 id="resultTitle" tabindex="-1">分析结果预览</h2>
+          </div>
+          <button id="resetBtn" class="secondary" type="button">重新开始</button>
+        </div>
+
+        <div class="result-grid">
+          <article class="result-card">
+            <h3>总体评价</h3>
+            <p id="summary">这张图适合被整理成一段有温度的视觉故事。</p>
+          </article>
+          <article class="result-card">
+            <h3>故事与情绪</h3>
+            <div id="storyOutput" class="tag-list"></div>
+          </article>
+          <article class="result-card">
+            <h3>五维评分</h3>
+            <div id="scores" class="scores"></div>
+          </article>
+          <article class="result-card">
+            <h3>注意事项</h3>
+            <div id="diagnosis" class="diagnosis"></div>
+          </article>
+        </div>
       </section>
-      <button id="resetBtn" class="secondary" type="button">评测另一张</button>
+
+      <section id="inspiration" class="inspiration-section">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">WikiArt-inspired</p>
+            <h2>样本灵感分类</h2>
+          </div>
+          <p>先用标签和样本感建立“艺术档案”气质，后续再接真实数据。</p>
+        </div>
+        <div class="inspiration-grid">
+          <article>
+            <span>人物纪念</span>
+            <strong>温暖、亲密、回忆感</strong>
+          </article>
+          <article>
+            <span>地点旅行</span>
+            <strong>空间、时间线、目的地故事</strong>
+          </article>
+          <article>
+            <span>画作插画</span>
+            <strong>风格、主题、视觉隐喻</strong>
+          </article>
+        </div>
+      </section>
     </section>
   </main>
+
   <script src="/app.js"></script>
 </body>
 </html>

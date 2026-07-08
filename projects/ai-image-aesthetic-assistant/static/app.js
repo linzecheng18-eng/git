@@ -1,22 +1,48 @@
-const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
+const modeCards = document.querySelectorAll(".mode-card");
+const progressSteps = document.querySelectorAll(".progress-step");
+const sideLinks = document.querySelectorAll(".side-link");
 const fileInput = document.getElementById("fileInput");
-const button = document.getElementById("analyzeBtn");
+const preview = document.getElementById("preview");
+const analyzeButton = document.getElementById("analyzeBtn");
 const resetButton = document.getElementById("resetBtn");
 const statusText = document.getElementById("status");
-const preview = document.getElementById("preview");
-const result = document.getElementById("result");
+const resultPreview = document.getElementById("resultPreview");
 const resultTitle = document.getElementById("resultTitle");
 const summary = document.getElementById("summary");
-const diagnosis = document.getElementById("diagnosis");
 const scores = document.getElementById("scores");
+const diagnosis = document.getElementById("diagnosis");
+const storyOutput = document.getElementById("storyOutput");
+const backgroundNotes = document.getElementById("backgroundNotes");
 const imageTypeControls = document.querySelectorAll('input[name="imageType"]');
 
-function validateFile(file) {
-  if (!file) throw new Error("请先选择图片。");
-  if (!ALLOWED_TYPES.has(file.type)) throw new Error("仅支持 JPG、PNG 和 WebP 图片。");
-  if (file.size > MAX_BYTES) throw new Error("图片不能超过 10 MiB。");
+const modeCopy = {
+  story: {
+    status: "图像故事模式：适合整理人物、地点、情绪和可发布文案。",
+    summary: "这张图会被整理成一段更有人情味的视觉故事，重点关注画面信息、情绪氛围和表达场景。",
+    tags: ["故事线索", "情绪共鸣", "可发布文案", "人物正向表达"],
+  },
+  aesthetic: {
+    status: "审美评测模式：适合优化构图、色彩、主体和视觉层次。",
+    summary: "这张图会被拆解为审美评分和修改建议，重点关注画面是否清晰、协调、有传播力。",
+    tags: ["构图", "色彩", "主体", "视觉层次"],
+  },
+  identity: {
+    status: "人物地点识别：适合结合你提供的信息整理照片背后的故事。",
+    summary: "这张图会先提取可观察线索，再结合背景信息整理人物、地点和事件，不做武断身份判断。",
+    tags: ["人物线索", "地点线索", "隐私提醒", "正向评价"],
+  },
+};
+
+let activeMode = "story";
+
+function setActiveMode(mode) {
+  activeMode = mode;
+  modeCards.forEach((card) => {
+    const isActive = card.dataset.mode === mode;
+    card.classList.toggle("active", isActive);
+    card.setAttribute("aria-pressed", String(isActive));
+  });
+  statusText.textContent = modeCopy[mode].status;
 }
 
 function releasePreview() {
@@ -32,45 +58,15 @@ function clearPreview() {
   preview.hidden = true;
 }
 
-fileInput.addEventListener("change", () => {
-  const file = fileInput.files[0];
-  try {
-    validateFile(file);
-  } catch (error) {
-    fileInput.value = "";
-    clearPreview();
-    statusText.textContent = error.message;
-    return;
-  }
-  clearPreview();
-  try {
-    const url = URL.createObjectURL(file);
-    preview.dataset.url = url;
-    preview.src = url;
-    preview.hidden = false;
-    statusText.textContent = "";
-  } catch {
-    fileInput.value = "";
-    clearPreview();
-    statusText.textContent = "无法预览图片，请重新选择。";
-  }
-});
-
-function renderResult(payload) {
-  summary.textContent = payload.summary;
-
-  const issueCards = payload.issues.map((issue, index) => {
-    const card = document.createElement("article");
-    const title = document.createElement("h4");
-    const advice = document.createElement("p");
-    title.textContent = issue;
-    advice.textContent = payload.suggestions[index];
-    card.append(title, advice);
-    return card;
-  });
-  diagnosis.replaceChildren(...issueCards);
-
-  const scoreItems = Object.entries(payload.scores).map(([name, score]) => {
+function renderScores() {
+  const items = [
+    ["构图", "8.2"],
+    ["色彩", "8.6"],
+    ["主体", "8.0"],
+    ["清晰度", "8.4"],
+    ["故事感", "9.0"],
+  ];
+  const nodes = items.map(([name, score]) => {
     const item = document.createElement("p");
     const label = document.createElement("span");
     const value = document.createElement("strong");
@@ -79,119 +75,98 @@ function renderResult(payload) {
     item.append(label, value);
     return item;
   });
-  scores.replaceChildren(...scoreItems);
-  result.hidden = false;
+  scores.replaceChildren(...nodes);
 }
 
-async function parseJsonResponse(response) {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
+function renderTags(tags) {
+  const nodes = tags.map((tag) => {
+    const item = document.createElement("span");
+    item.textContent = tag;
+    return item;
+  });
+  storyOutput.replaceChildren(...nodes);
 }
 
-function isValidPayload(payload) {
-  return payload !== null
-    && typeof payload === "object"
-    && typeof payload.summary === "string"
-    && Array.isArray(payload.issues)
-    && payload.issues.every((issue) => typeof issue === "string")
-    && Array.isArray(payload.suggestions)
-    && payload.suggestions.length === payload.issues.length
-    && payload.suggestions.every((suggestion) => typeof suggestion === "string")
-    && payload.scores !== null
-    && typeof payload.scores === "object"
-    && !Array.isArray(payload.scores)
-    && Object.values(payload.scores).every((score) => typeof score === "number");
+function renderDiagnosis(hasNotes) {
+  const messages = [
+    "人物照片优先评价氛围、姿态和表达感，不评价长相好坏。",
+    hasNotes ? "已结合背景信息生成更贴近真实语境的故事方向。" : "建议补充人物、地点、时间或用途，减少 AI 纯猜测。",
+    "发布前注意隐私、肖像授权和具体地点暴露。",
+  ];
+  const nodes = messages.map((message) => {
+    const item = document.createElement("article");
+    item.textContent = message;
+    return item;
+  });
+  diagnosis.replaceChildren(...nodes);
 }
 
-button.addEventListener("click", async () => {
-  if (button.disabled) return;
+function animateProgress() {
+  progressSteps.forEach((step) => {
+    step.classList.remove("is-active");
+  });
+  progressSteps.forEach((step, index) => {
+    window.setTimeout(() => {
+      progressSteps.forEach((item) => item.classList.remove("is-active"));
+      step.classList.add("is-active");
+    }, index * 260);
+  });
+}
 
+function renderDemoResult() {
+  const hasNotes = backgroundNotes.value.trim().length > 0;
+  const copy = modeCopy[activeMode];
+  summary.textContent = copy.summary;
+  renderTags(copy.tags);
+  renderScores();
+  renderDiagnosis(hasNotes);
+  resultPreview.hidden = false;
+  resultTitle.focus();
+  resultPreview.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+modeCards.forEach((card) => {
+  card.addEventListener("click", () => {
+    setActiveMode(card.dataset.mode);
+  });
+});
+
+sideLinks.forEach((link) => {
+  link.addEventListener("click", () => {
+    sideLinks.forEach((item) => item.classList.remove("active"));
+    link.classList.add("active");
+  });
+});
+
+fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
-  const imageType = document.querySelector('input[name="imageType"]:checked');
-  try {
-    validateFile(file);
-    if (!imageType) throw new Error("请选择图片类型。");
-  } catch (error) {
-    statusText.textContent = error.message;
+  clearPreview();
+  if (!file) {
+    statusText.textContent = modeCopy[activeMode].status;
     return;
   }
+  const url = URL.createObjectURL(file);
+  preview.dataset.url = url;
+  preview.src = url;
+  preview.hidden = false;
+  statusText.textContent = "图片已载入。当前仍是静态原型，只展示交互和结果样式。";
+});
 
-  button.disabled = true;
-  fileInput.disabled = true;
-  imageTypeControls.forEach((control) => {
-    control.disabled = true;
-  });
-  button.textContent = "评测中…";
-  statusText.textContent = "正在评测，请稍候。";
-
-  try {
-    let body;
-    try {
-      body = await file.arrayBuffer();
-    } catch {
-      statusText.textContent = "无法读取图片，请重新选择后重试。";
-      return;
-    }
-
-    let response;
-    try {
-      response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": file.type,
-          "X-Filename": encodeURIComponent(file.name),
-          "X-Image-Type": imageType.value,
-        },
-        body,
-      });
-    } catch {
-      statusText.textContent = "网络连接失败，请检查后重试。";
-      return;
-    }
-
-    const payload = await parseJsonResponse(response);
-    if (payload === null) {
-      statusText.textContent = "服务器返回的数据异常，请稍后重试。";
-      return;
-    }
-    if (!response.ok) {
-      const message = payload?.error?.message;
-      statusText.textContent = typeof message === "string" && message.trim()
-        ? message
-        : "评测失败，请稍后重试。";
-      return;
-    }
-    if (!isValidPayload(payload)) {
-      statusText.textContent = "服务器返回的数据异常，请稍后重试。";
-      return;
-    }
-    renderResult(payload);
-    statusText.textContent = "评测完成。";
-    resultTitle.focus();
-    result.scrollIntoView({ behavior: "smooth", block: "start" });
-  } finally {
-    button.disabled = false;
-    fileInput.disabled = false;
-    imageTypeControls.forEach((control) => {
-      control.disabled = false;
-    });
-    button.textContent = "开始评测";
-  }
+analyzeButton.addEventListener("click", () => {
+  animateProgress();
+  window.setTimeout(renderDemoResult, 980);
 });
 
 resetButton.addEventListener("click", () => {
   clearPreview();
   fileInput.value = "";
-  result.hidden = true;
-  summary.textContent = "";
-  diagnosis.replaceChildren();
-  scores.replaceChildren();
-  statusText.textContent = "";
+  backgroundNotes.value = "";
+  resultPreview.hidden = true;
+  statusText.textContent = modeCopy[activeMode].status;
   imageTypeControls.forEach((control) => {
     control.checked = false;
   });
   fileInput.focus();
 });
+
+setActiveMode(activeMode);
