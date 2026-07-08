@@ -491,13 +491,38 @@ legend,
   gap: 10px;
 }
 
-.scores p {
+.score-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin: 0;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.score-row strong {
+  min-width: 34px;
+  color: var(--green);
+  text-align: right;
+}
+
+/* From Uiverse.io by andrew-demchenk0, adapted for read-only result ratings. */
+.rating {
+  display: inline-flex;
+  flex: 1;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.rating-star {
+  color: #666;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.rating-star.filled {
+  color: #ffa723;
+  text-shadow: 0 6px 14px rgba(255, 167, 35, 0.28);
 }
 
 .diagnosis {

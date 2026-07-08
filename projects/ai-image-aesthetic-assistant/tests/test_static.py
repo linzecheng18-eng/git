@@ -71,6 +71,23 @@ class StaticPrototypeTests(unittest.TestCase):
             self.assertIn(fragment, compact)
         self.assertIn(":focus-visible", self.styles)
 
+    def test_scores_are_rendered_as_star_ratings(self):
+        for fragment in (
+            "createStarRating",
+            'className = "rating"',
+            'className = "score-row"',
+            'aria-label',
+            '★',
+        ):
+            self.assertIn(fragment, self.script)
+        for fragment in (
+            ".rating{",
+            ".rating-star{",
+            ".rating-star.filled{",
+            "#ffa723",
+        ):
+            self.assertIn(fragment, "".join(self.styles.split()))
+
 
 if __name__ == "__main__":
     unittest.main()

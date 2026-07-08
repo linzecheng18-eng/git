@@ -58,21 +58,37 @@ function clearPreview() {
   preview.hidden = true;
 }
 
+function createStarRating(score) {
+  const rating = document.createElement("div");
+  rating.className = "rating";
+  rating.setAttribute("aria-label", `${score} 分，满分 10 分`);
+
+  const filledStars = Math.round(score / 2);
+  for (let index = 1; index <= 5; index += 1) {
+    const star = document.createElement("span");
+    star.className = index <= filledStars ? "rating-star filled" : "rating-star";
+    star.textContent = "★";
+    rating.append(star);
+  }
+  return rating;
+}
+
 function renderScores() {
   const items = [
-    ["构图", "8.2"],
-    ["色彩", "8.6"],
-    ["主体", "8.0"],
-    ["清晰度", "8.4"],
-    ["故事感", "9.0"],
+    ["构图", 8.2],
+    ["色彩", 8.6],
+    ["主体", 8.0],
+    ["清晰度", 8.4],
+    ["故事感", 9.0],
   ];
   const nodes = items.map(([name, score]) => {
-    const item = document.createElement("p");
+    const item = document.createElement("div");
+    item.className = "score-row";
     const label = document.createElement("span");
     const value = document.createElement("strong");
     label.textContent = name;
-    value.textContent = `${score}/10`;
-    item.append(label, value);
+    value.textContent = score.toFixed(1);
+    item.append(label, createStarRating(score), value);
     return item;
   });
   scores.replaceChildren(...nodes);
