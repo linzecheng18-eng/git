@@ -1,0 +1,9 @@
+.worktrees/
+.superpowers/sdd/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+projects/ai-image-aesthetic-assistant/data/test_set/images/
+projects/ai-image-aesthetic-assistant/data/eval_results/
