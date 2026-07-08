@@ -10,85 +10,111 @@
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
-  <main class="app-shell">
-    <aside class="studio-sidebar" aria-label="工作台导航">
-      <div class="brand-mark">
+  <main class="gallery-flow-shell">
+    <nav class="top-nav" aria-label="Gallery Flow 导航">
+      <a class="brand-lockup" href="#" data-target-view="landing">
         <span>GS</span>
+        <strong>Gallery Story Studio</strong>
+      </a>
+      <div class="flow-tabs">
+        <button type="button" data-target-view="landing">首页</button>
+        <button type="button" data-target-view="modes">选择模式</button>
+        <button type="button" data-target-view="input">输入信息</button>
+        <button type="button" data-target-view="result">结果预览</button>
       </div>
-      <p class="eyebrow">Gallery Story Studio</p>
-      <h1>AI 图片审美与故事分析助手</h1>
-      <p class="sidebar-copy">从“图片好不好看”升级到“图片表达了什么、哪里打动人、还能怎么讲好”。</p>
+    </nav>
 
-      <nav class="side-nav" aria-label="分析模块">
-        <a class="side-link active" href="#studio">新建分析</a>
-        <a class="side-link" href="#resultPreview">结果预览</a>
-        <a class="side-link" href="#inspiration">样本灵感</a>
-      </nav>
-    </aside>
+    <section class="flow-view active landing-view" data-view="landing">
+      <div class="landing-copy">
+        <p class="eyebrow">Gallery Flow · Uiverse-inspired prototype</p>
+        <h1>让图片先被理解，再被优化。</h1>
+        <p>从“图片好不好看”进入“图片表达了什么”。适合摄影、AI 绘图、人物纪念照、旅行照片和社交媒体内容。</p>
+        <div class="hero-actions">
+          <button class="primary-action" type="button" data-target-view="modes">开始分析</button>
+          <button class="ghost-action" type="button" data-target-view="result">查看样例结果</button>
+        </div>
+      </div>
 
-    <section class="workspace" id="studio">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">温暖人文 · 审美评分 · 图像故事</p>
-          <h2>让图片先被理解，再被优化。</h2>
-        </div>
-        <div class="status-pill" aria-label="原型状态">
-          <span class="pulse-dot"></span>
-          静态交互原型
-        </div>
-      </header>
+      <div class="hero-gallery" aria-label="视觉样例">
+        <article class="floating-preview-card interactive-tilt">
+          <span>Story</span>
+          <strong>人物记忆</strong>
+          <small>温暖、亲密、回忆感</small>
+        </article>
+        <article class="floating-preview-card interactive-tilt offset">
+          <span>Aesthetic</span>
+          <strong>星级审美</strong>
+          <small>构图、色彩、主体、故事感</small>
+        </article>
+        <article class="floating-preview-card interactive-tilt dark">
+          <span>Archive</span>
+          <strong>艺术档案</strong>
+          <small>风格标签与情绪线索</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="flow-view modes-view" data-view="modes" hidden>
+      <div class="section-heading">
+        <p class="eyebrow">Step 01</p>
+        <h2>选择你想进入的分析 UI</h2>
+        <p>不把所有信息堆在一屏。点击模式后进入对应输入页。</p>
+      </div>
 
       <section class="mode-grid" aria-label="选择分析模式">
-        <button class="mode-card active" type="button" data-mode="story">
+        <button class="mode-card active interactive-tilt" type="button" data-mode="story" data-target-view="input">
           <span class="mode-kicker">推荐</span>
           <strong>图像故事模式</strong>
           <small>整理人物、地点、场景、情绪和可发布文案。</small>
         </button>
-        <button class="mode-card" type="button" data-mode="aesthetic">
+        <button class="mode-card interactive-tilt" type="button" data-mode="aesthetic" data-target-view="input">
           <span class="mode-kicker">基础</span>
           <strong>审美评测模式</strong>
           <small>分析构图、色彩、主体、清晰度和视觉层次。</small>
         </button>
-        <button class="mode-card" type="button" data-mode="identity">
+        <button class="mode-card interactive-tilt" type="button" data-mode="identity" data-target-view="input">
           <span class="mode-kicker">扩展</span>
           <strong>人物地点识别</strong>
-          <small>基于用户补充信息，整理照片背后的故事线索。</small>
+          <small>结合用户信息整理照片背后的故事线索。</small>
         </button>
       </section>
+    </section>
 
-      <section class="creation-panel" aria-labelledby="uploadTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Step 01</p>
-            <h2 id="uploadTitle">上传图片与补充背景</h2>
-          </div>
-          <p id="status" role="status" aria-live="polite">选择模式后，上传图片即可预览静态结果。</p>
+    <section class="flow-view input-view" data-view="input" hidden>
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">Step 02</p>
+          <h2 id="uploadTitle">上传图片与补充背景</h2>
         </div>
+        <p id="status" role="status" aria-live="polite">当前是静态原型，只展示页面切换和交互效果。</p>
+      </div>
 
-        <fieldset id="imageTypeGroup">
-          <legend>图片类型</legend>
-          <div class="type-options">
-            <label><input type="radio" name="imageType" value="photography"> 摄影照片</label>
-            <label><input type="radio" name="imageType" value="ai_generated"> AI 生成图</label>
-            <label><input type="radio" name="imageType" value="social_media"> 社交媒体配图</label>
-          </div>
-        </fieldset>
+      <section class="input-stage" aria-labelledby="uploadTitle">
+        <div class="upload-column">
+          <fieldset id="imageTypeGroup">
+            <legend>图片类型</legend>
+            <div class="type-options">
+              <label><input type="radio" name="imageType" value="photography"> 摄影照片</label>
+              <label><input type="radio" name="imageType" value="ai_generated"> AI 生成图</label>
+              <label><input type="radio" name="imageType" value="social_media"> 社交媒体配图</label>
+            </div>
+          </fieldset>
 
-        <div class="upload-layout">
-          <label class="upload-box" for="fileInput">
+          <label class="upload-box interactive-tilt" for="fileInput">
             <span>选择一张 JPG、PNG 或 WebP 图片</span>
-            <small>这里先做本地预览，不接真实识别功能。</small>
+            <small>先做本地预览，不接真实识别功能。</small>
           </label>
           <input class="visually-hidden" id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
-          <img id="preview" alt="待分析图片预览" hidden>
         </div>
 
-        <label class="notes-field" for="backgroundNotes">
-          <span>背景信息</span>
-          <textarea id="backgroundNotes" rows="4" placeholder="例如：这是一次海边旅行照片，想表达轻松、怀念的感觉，准备用来发朋友圈。"></textarea>
-        </label>
-
-        <button id="analyzeBtn" type="button">查看静态分析效果</button>
+        <div class="context-column">
+          <img id="preview" alt="待分析图片预览" hidden>
+          <label class="notes-field" for="backgroundNotes">
+            <span>背景信息</span>
+            <textarea id="backgroundNotes" rows="5" placeholder="例如：这是一次海边旅行照片，想表达轻松、怀念的感觉，准备用来发朋友圈。"></textarea>
+          </label>
+          <button id="analyzeBtn" class="primary-action" type="button">生成预览结果</button>
+        </div>
       </section>
 
       <section class="progress-panel" aria-label="分析进度演示">
@@ -97,59 +123,35 @@
         <div class="progress-step" data-step="story">提炼故事</div>
         <div class="progress-step" data-step="advice">生成建议</div>
       </section>
+    </section>
 
-      <section id="resultPreview" class="result-preview" hidden>
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Step 02</p>
-            <h2 id="resultTitle" tabindex="-1">分析结果预览</h2>
-          </div>
-          <button id="resetBtn" class="secondary" type="button">重新开始</button>
+    <section id="resultPreview" class="flow-view result-preview" data-view="result" hidden>
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">Step 03</p>
+          <h2 id="resultTitle" tabindex="-1">分析结果预览</h2>
         </div>
+        <button id="resetBtn" class="ghost-action" type="button" data-target-view="landing">重新开始</button>
+      </div>
 
-        <div class="result-grid">
-          <article class="result-card">
-            <h3>总体评价</h3>
-            <p id="summary">这张图适合被整理成一段有温度的视觉故事。</p>
-          </article>
-          <article class="result-card">
-            <h3>故事与情绪</h3>
-            <div id="storyOutput" class="tag-list"></div>
-          </article>
-          <article class="result-card">
-            <h3>五维评分</h3>
-            <div id="scores" class="scores"></div>
-          </article>
-          <article class="result-card">
-            <h3>注意事项</h3>
-            <div id="diagnosis" class="diagnosis"></div>
-          </article>
-        </div>
-      </section>
-
-      <section id="inspiration" class="inspiration-section">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">WikiArt-inspired</p>
-            <h2>样本灵感分类</h2>
-          </div>
-          <p>先用标签和样本感建立“艺术档案”气质，后续再接真实数据。</p>
-        </div>
-        <div class="inspiration-grid">
-          <article>
-            <span>人物纪念</span>
-            <strong>温暖、亲密、回忆感</strong>
-          </article>
-          <article>
-            <span>地点旅行</span>
-            <strong>空间、时间线、目的地故事</strong>
-          </article>
-          <article>
-            <span>画作插画</span>
-            <strong>风格、主题、视觉隐喻</strong>
-          </article>
-        </div>
-      </section>
+      <div class="result-grid">
+        <article class="result-card">
+          <h3>总体评价</h3>
+          <p id="summary">这张图适合被整理成一段有温度的视觉故事。</p>
+        </article>
+        <article class="result-card">
+          <h3>故事与情绪</h3>
+          <div id="storyOutput" class="tag-list"></div>
+        </article>
+        <article class="result-card">
+          <h3>星级评分</h3>
+          <div id="scores" class="scores"></div>
+        </article>
+        <article class="result-card">
+          <h3>注意事项</h3>
+          <div id="diagnosis" class="diagnosis"></div>
+        </article>
+      </div>
     </section>
   </main>
 

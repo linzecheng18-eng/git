@@ -1,6 +1,8 @@
+const views = document.querySelectorAll(".flow-view");
+const viewTriggers = document.querySelectorAll("[data-target-view]");
 const modeCards = document.querySelectorAll(".mode-card");
 const progressSteps = document.querySelectorAll(".progress-step");
-const sideLinks = document.querySelectorAll(".side-link");
+const tiltTargets = document.querySelectorAll(".interactive-tilt");
 const fileInput = document.getElementById("fileInput");
 const preview = document.getElementById("preview");
 const analyzeButton = document.getElementById("analyzeBtn");
@@ -35,6 +37,15 @@ const modeCopy = {
 
 let activeMode = "story";
 
+function goToView(viewName) {
+  views.forEach((view) => {
+    const isActive = view.dataset.view === viewName;
+    view.classList.toggle("active", isActive);
+    view.hidden = !isActive;
+  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function setActiveMode(mode) {
   activeMode = mode;
   modeCards.forEach((card) => {
@@ -43,6 +54,22 @@ function setActiveMode(mode) {
     card.setAttribute("aria-pressed", String(isActive));
   });
   statusText.textContent = modeCopy[mode].status;
+}
+
+function handleInteractiveTilt(event) {
+  const target = event.currentTarget;
+  const rect = target.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const rotateY = ((x / rect.width) - 0.5) * 8;
+  const rotateX = ((0.5 - (y / rect.height)) * 8);
+  target.style.setProperty("--tilt-x", `${rotateX}deg`);
+  target.style.setProperty("--tilt-y", `${rotateY}deg`);
+}
+
+function resetInteractiveTilt(event) {
+  event.currentTarget.style.setProperty("--tilt-x", "0deg");
+  event.currentTarget.style.setProperty("--tilt-y", "0deg");
 }
 
 function releasePreview() {
@@ -125,7 +152,7 @@ function animateProgress() {
     window.setTimeout(() => {
       progressSteps.forEach((item) => item.classList.remove("is-active"));
       step.classList.add("is-active");
-    }, index * 260);
+    }, index * 240);
   });
 }
 
@@ -137,21 +164,27 @@ function renderDemoResult() {
   renderScores();
   renderDiagnosis(hasNotes);
   resultPreview.hidden = false;
+  goToView("result");
   resultTitle.focus();
-  resultPreview.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+viewTriggers.forEach((trigger) => {
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    goToView(trigger.dataset.targetView);
+  });
+});
 
 modeCards.forEach((card) => {
   card.addEventListener("click", () => {
     setActiveMode(card.dataset.mode);
+    goToView("input");
   });
 });
 
-sideLinks.forEach((link) => {
-  link.addEventListener("click", () => {
-    sideLinks.forEach((item) => item.classList.remove("active"));
-    link.classList.add("active");
-  });
+tiltTargets.forEach((target) => {
+  target.addEventListener("mousemove", handleInteractiveTilt);
+  target.addEventListener("mouseleave", resetInteractiveTilt);
 });
 
 fileInput.addEventListener("change", () => {
@@ -170,7 +203,7 @@ fileInput.addEventListener("change", () => {
 
 analyzeButton.addEventListener("click", () => {
   animateProgress();
-  window.setTimeout(renderDemoResult, 980);
+  window.setTimeout(renderDemoResult, 920);
 });
 
 resetButton.addEventListener("click", () => {
@@ -178,11 +211,11 @@ resetButton.addEventListener("click", () => {
   fileInput.value = "";
   backgroundNotes.value = "";
   resultPreview.hidden = true;
-  statusText.textContent = modeCopy[activeMode].status;
   imageTypeControls.forEach((control) => {
     control.checked = false;
   });
-  fileInput.focus();
+  setActiveMode("story");
+  goToView("landing");
 });
 
 setActiveMode(activeMode);

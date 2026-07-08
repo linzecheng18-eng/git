@@ -13,16 +13,20 @@ class StaticPrototypeTests(unittest.TestCase):
 
     def test_gallery_story_studio_structure_exists(self):
         for fragment in (
-            "AI 图片审美与故事分析助手",
+            "Gallery Flow",
             "Gallery Story Studio",
-            'class="app-shell"',
-            'class="studio-sidebar"',
-            'class="mode-card active"',
+            'class="gallery-flow-shell"',
+            'data-view="landing"',
+            'data-view="modes"',
+            'data-view="input"',
+            'data-view="result"',
             'data-mode="story"',
             'data-mode="aesthetic"',
             'data-mode="identity"',
             'id="backgroundNotes"',
             'id="resultPreview"',
+            'data-target-view="modes"',
+            'data-target-view="landing"',
         ):
             self.assertIn(fragment, self.html)
 
@@ -46,11 +50,14 @@ class StaticPrototypeTests(unittest.TestCase):
             "document.querySelectorAll",
             "modeCards.forEach",
             "progressSteps.forEach",
+            "viewTriggers.forEach",
             "URL.createObjectURL",
             "URL.revokeObjectURL",
             "resultPreview.hidden = false",
             "renderDemoResult",
+            "goToView",
             "setActiveMode",
+            "handleInteractiveTilt",
             "textContent",
         ):
             self.assertIn(fragment, self.script)
@@ -58,14 +65,17 @@ class StaticPrototypeTests(unittest.TestCase):
     def test_interactive_visual_language_exists(self):
         compact = "".join(self.styles.split())
         for fragment in (
-            ".app-shell{",
-            ".studio-sidebar{",
+            ".gallery-flow-shell{",
+            ".flow-view{",
+            ".flow-view.active{",
+            ".floating-preview-card{",
             ".mode-card{",
             ".mode-card.active{",
+            ".interactive-tilt{",
             ".progress-step.is-active{",
             ".result-card{",
-            ".inspiration-grid{",
             "@keyframespulse",
+            "@keyframesviewIn",
             "@media(max-width:",
         ):
             self.assertIn(fragment, compact)
