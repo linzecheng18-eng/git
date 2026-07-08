@@ -53,7 +53,7 @@ class StaticPrototypeTests(unittest.TestCase):
             "viewTriggers.forEach",
             "URL.createObjectURL",
             "URL.revokeObjectURL",
-            "resultPreview.hidden = false",
+            "view.setAttribute(\"aria-hidden\"",
             "renderDemoResult",
             "goToView",
             "setActiveMode",
@@ -66,8 +66,13 @@ class StaticPrototypeTests(unittest.TestCase):
         compact = "".join(self.styles.split())
         for fragment in (
             ".gallery-flow-shell{",
+            ".flow-nav-pill{",
+            ".flow-nav-pillbutton{",
+            ".view-stage{",
             ".flow-view{",
             ".flow-view.active{",
+            ".flow-view.slide-from-right{",
+            ".flow-view.slide-from-left{",
             ".floating-preview-card{",
             ".mode-card{",
             ".mode-card.active{",
@@ -80,6 +85,28 @@ class StaticPrototypeTests(unittest.TestCase):
         ):
             self.assertIn(fragment, compact)
         self.assertIn(":focus-visible", self.styles)
+
+    def test_views_are_sliding_panels_not_stacked_sections(self):
+        compact = "".join(self.styles.split())
+        for fragment in (
+            ".view-stage{position:relative",
+            "overflow:hidden",
+            ".flow-view{position:absolute",
+            "inset:0",
+            "pointer-events:none",
+            ".flow-view.active{position:relative",
+            "pointer-events:auto",
+            "will-change:transform,opacity",
+        ):
+            self.assertIn(fragment, compact)
+        for fragment in (
+            "let activeViewIndex = 0",
+            "const viewOrder",
+            "slide-from-right",
+            "slide-from-left",
+            "trigger.classList.toggle(\"active\"",
+        ):
+            self.assertIn(fragment, self.script)
 
     def test_scores_are_rendered_as_star_ratings(self):
         for fragment in (

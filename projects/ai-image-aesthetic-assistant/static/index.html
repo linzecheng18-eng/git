@@ -11,19 +11,20 @@
   <div class="ambient ambient-two"></div>
 
   <main class="gallery-flow-shell">
-    <nav class="top-nav" aria-label="Gallery Flow 导航">
+    <nav class="flow-nav-pill" aria-label="Gallery Flow 导航">
       <a class="brand-lockup" href="#" data-target-view="landing">
         <span>GS</span>
         <strong>Gallery Story Studio</strong>
       </a>
       <div class="flow-tabs">
-        <button type="button" data-target-view="landing">首页</button>
+        <button class="active" type="button" data-target-view="landing">首页</button>
         <button type="button" data-target-view="modes">选择模式</button>
         <button type="button" data-target-view="input">输入信息</button>
         <button type="button" data-target-view="result">结果预览</button>
       </div>
     </nav>
 
+    <div class="view-stage">
     <section class="flow-view active landing-view" data-view="landing">
       <div class="landing-copy">
         <p class="eyebrow">Gallery Flow · Uiverse-inspired prototype</p>
@@ -54,7 +55,7 @@
       </div>
     </section>
 
-    <section class="flow-view modes-view" data-view="modes" hidden>
+    <section class="flow-view modes-view" data-view="modes">
       <div class="section-heading">
         <p class="eyebrow">Step 01</p>
         <h2>选择你想进入的分析 UI</h2>
@@ -80,7 +81,7 @@
       </section>
     </section>
 
-    <section class="flow-view input-view" data-view="input" hidden>
+    <section class="flow-view input-view" data-view="input">
       <div class="section-heading split-heading">
         <div>
           <p class="eyebrow">Step 02</p>
@@ -125,7 +126,7 @@
       </section>
     </section>
 
-    <section id="resultPreview" class="flow-view result-preview" data-view="result" hidden>
+    <section id="resultPreview" class="flow-view result-preview" data-view="result">
       <div class="section-heading split-heading">
         <div>
           <p class="eyebrow">Step 03</p>
@@ -153,6 +154,7 @@
         </article>
       </div>
     </section>
+    </div>
   </main>
 
   <script src="/app.js"></script>

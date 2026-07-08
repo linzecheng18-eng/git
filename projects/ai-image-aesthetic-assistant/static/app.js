@@ -1,5 +1,6 @@
 const views = document.querySelectorAll(".flow-view");
 const viewTriggers = document.querySelectorAll("[data-target-view]");
+const viewOrder = ["landing", "modes", "input", "result"];
 const modeCards = document.querySelectorAll(".mode-card");
 const progressSteps = document.querySelectorAll(".progress-step");
 const tiltTargets = document.querySelectorAll(".interactive-tilt");
@@ -36,13 +37,24 @@ const modeCopy = {
 };
 
 let activeMode = "story";
+let activeViewIndex = 0;
 
 function goToView(viewName) {
+  const nextViewIndex = viewOrder.indexOf(viewName);
+  const directionClass = nextViewIndex >= activeViewIndex
+    ? "slide-from-right"
+    : "slide-from-left";
   views.forEach((view) => {
     const isActive = view.dataset.view === viewName;
+    view.classList.remove("active", "slide-from-right", "slide-from-left");
     view.classList.toggle("active", isActive);
-    view.hidden = !isActive;
+    view.setAttribute("aria-hidden", String(!isActive));
+    if (isActive) view.classList.add(directionClass);
   });
+  viewTriggers.forEach((trigger) => {
+    trigger.classList.toggle("active", trigger.dataset.targetView === viewName);
+  });
+  if (nextViewIndex >= 0) activeViewIndex = nextViewIndex;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -163,7 +175,6 @@ function renderDemoResult() {
   renderTags(copy.tags);
   renderScores();
   renderDiagnosis(hasNotes);
-  resultPreview.hidden = false;
   goToView("result");
   resultTitle.focus();
 }
@@ -210,7 +221,6 @@ resetButton.addEventListener("click", () => {
   clearPreview();
   fileInput.value = "";
   backgroundNotes.value = "";
-  resultPreview.hidden = true;
   imageTypeControls.forEach((control) => {
     control.checked = false;
   });
